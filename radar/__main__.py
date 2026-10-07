@@ -177,6 +177,48 @@ def cmd_vigiar(args):
     return 0 if ok else 1
 
 
+def cmd_destinatarios(args):
+    """Mostra, adiciona ou remove destinatários de um destino de e-mail (segredo email_destinatarios_<destino>).
+
+    Existe para não ter de reescrever a lista inteira (guardar-segredo substitui tudo)."""
+    settings = config.carregar_settings()
+    dominios = settings.get("email", {}).get("dominios_permitidos")
+    nome = f"email_destinatarios_{args.destino}"
+    try:
+        atual = email_outlook.parse_destinatarios(segredos.obter(nome))
+    except RuntimeError:
+        atual = []
+    adicionar = [e.strip().lower().strip(";,") for e in (args.adicionar or [])]
+    remover = {e.strip().lower().strip(";,") for e in (args.remover or [])}
+    for e in adicionar:
+        if "@" not in e or " " in e:
+            print(f"'{e}' não parece um e-mail. Nada foi alterado.")
+            return 2
+        if not email_outlook.dominio_permitido(e, dominios):
+            print(f"'{e}' não está em um domínio permitido ({', '.join(dominios)}). Dado operacional só vai para contas "
+                  "corporativas. Nada foi alterado.")
+            return 2
+    if adicionar or remover:
+        final: list[str] = []
+        for e in atual + adicionar:
+            if e.lower() not in remover and e.lower() not in {x.lower() for x in final}:
+                final.append(e)
+        faltou = remover - {e.lower() for e in atual}
+        if faltou:
+            print("Não estavam na lista: " + ", ".join(sorted(faltou)))
+        if not final:
+            print("A lista ficaria vazia. Nada foi alterado.")
+            return 2
+        segredos.salvar(nome, "; ".join(final))
+        atual = final
+        print("Lista atualizada.")
+    print(f"Destinatários de email:{args.destino} ({len(atual)}):")
+    for e in atual:
+        print("  - " + e)
+    if not atual:
+        print("  (nenhum; use --adicionar)")
+
+
 def cmd_base_referencia(args):
     """Registra o estoque atual como "já conhecido" SEM enviar nada (primeira execução em uma máquina nova).
 
@@ -341,6 +383,12 @@ def main(argv=None):
     s.add_argument("--forcar", action="store_true", help="roda mesmo sem atualização nova")
     s.add_argument("--forcar-inativa", action="store_true")
     s.set_defaults(fn=cmd_vigiar)
+
+    s = sub.add_parser("destinatarios", help="mostra, adiciona ou remove e-mails de um destino (ex.: teste)")
+    s.add_argument("destino", help="ex.: teste (segredo email_destinatarios_teste) ou dono")
+    s.add_argument("--adicionar", nargs="+", metavar="EMAIL")
+    s.add_argument("--remover", nargs="+", metavar="EMAIL")
+    s.set_defaults(fn=cmd_destinatarios)
 
     s = sub.add_parser("base-referencia", help="registra o estoque atual como já conhecido, sem enviar nada")
     s.add_argument("task")

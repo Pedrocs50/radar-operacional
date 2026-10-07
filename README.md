@@ -258,7 +258,7 @@ Gerenciador de Credenciais do Windows.
 
 | Onde | O que ajustar |
 |---|---|
-| `config\settings.yaml` | `bigquery.job_project` (projeto onde os jobs rodam), `bigquery.max_bytes_billed` (teto por consulta), `storage.db_path`, `preview.retencao_horas`, `retencao.mensagens_dias`, `sandbox` |
+| `config\settings.yaml` | `bigquery.job_project` (projeto onde os jobs rodam), `bigquery.max_bytes_billed` (teto por consulta), `storage.db_path`, `preview.retencao_horas`, `retencao.mensagens_dias`, `email.dominios_permitidos`, `sandbox` |
 | `tasks\cds_gfw_fora_da_area.yaml` | `canais` (destinos), `email.modo` e `email.remetente`, `sinais` (limites), `graficos` (painéis), `indicadores`, `saude`, `acompanhamento`, `mensagem` (colunas e rótulos) |
 
 **Sandbox:** enquanto `sandbox.ativo: true`, só os canais listados em `sandbox.canais_permitidos` recebem envio real, e os
@@ -278,11 +278,44 @@ git pull
 
 Não é preciso reiniciar nada: cada chamada agendada carrega o código atual. Os segredos, as chaves e `data\` ficam como estão.
 
-### Adicionar pessoas
+### Adicionar ou remover pessoas
 
-Antes de incluir pessoas no canal do Teams ou na lista de e-mail, confirmar com a TI e a segurança da informação o que pode
-circular por Teams e e-mail. Para o e-mail sair em nome de uma caixa compartilhada, definir `email.remetente` no YAML (exige
-a permissão "Enviar como").
+**Antes de incluir qualquer pessoa**, confirmar com a TI e a segurança da informação o que pode circular por Teams e e-mail:
+os alertas e o Excel levam dado operacional de aviação. Quem recebe pode ser configurado de dois jeitos, que se somam.
+
+**1. Pelo Teams (canal).** Adicionar a pessoa como membro da equipe ou do canal (no Teams: `...` da equipe -> **Adicionar
+membro**). Ela passa a ver os cartões e os e-mails que chegam ao canal. Para ser notificada, cada membro ativa as notificações
+do canal (`...` do canal -> **Notificações do canal** -> **Todas as atividades**). Nada muda no Radar.
+
+**2. Na caixa de entrada (e-mail).** O destino `email:teste` lê a lista do segredo `email_destinatarios_teste` (hoje: o endereço
+do canal do Teams e o e-mail do dono). Use o comando `destinatarios`, que **não apaga os que já estão na lista**
+(`guardar-segredo` substitui a lista inteira):
+
+```powershell
+python -W ignore -m radar destinatarios teste                                              # mostra quem recebe hoje
+python -W ignore -m radar destinatarios teste --adicionar maria@empresa.com.br joao@empresa.com.br
+python -W ignore -m radar destinatarios teste --remover joao@empresa.com.br
+```
+
+- A mudança vale na **próxima mensagem**: não é preciso reiniciar nem reagendar.
+- Quem está na lista recebe o **alerta de CD nova** e os **resumos** (7h, 12h, 14h e 18h), com tabela, gráficos e Excel.
+- **Só domínios corporativos:** `email.dominios_permitidos` em `config\settings.yaml` (hoje `embraer.com.br` e
+  `amer.teams.ms`, o domínio do endereço de e-mail dos canais). O comando recusa outros domínios, e o envio também; para
+  liberar um domínio, edite essa lista de propósito. Sem a chave, não há restrição.
+- Para mandar uma mensagem de verificação a **todos** da lista: `python -W ignore -m radar resumo cds_gfw_fora_da_area --real
+  --canais email:teste --forcar-inativa`. Para testar só com o dono: `--canais email:dono`.
+- O e-mail sai **em nome de quem está logado no Outlook** do servidor, e os destinatários verão esse remetente. Para sair em
+  nome de uma caixa compartilhada, definir `email.remetente` no YAML da tarefa (exige a permissão "Enviar como").
+- Enquanto `sandbox.ativo: true`, assunto e corpo levam "TESTE" / "SANDBOX". Quando a TI liberar o uso, definir
+  `sandbox.ativo: false` em `config\settings.yaml`.
+
+**Grupos diferentes** (por exemplo uma coordenação que receba por e-mail separado): criar outro destino, por exemplo
+`email:coordenacao` -> `python -m radar destinatarios coordenacao --adicionar ...`, incluir `"email:coordenacao"` em `canais` da
+tarefa e em `sandbox.canais_permitidos`. Cada destino recebe tudo o que a tarefa envia por e-mail; separar por tipo de
+mensagem ou por área ainda não é suportado (próximo passo: segmentar por `Descricao_Area_Responsavel`).
+
+**Quem não pode receber:** o robô nunca envia para domínio fora da lista permitida, e o Excel anexo tem todas as colunas
+do SQL; trate-o como dado operacional.
 
 ## Comandos
 
@@ -293,6 +326,7 @@ a permissão "Enviar como").
 | `python -m radar run <tarefa>` | Dry-run: gera prévia, imagens e e-mail de prévia; **não** grava estado nem envia |
 | `python -m radar run <tarefa> --real --forcar-inativa` | Entrega aos canais permitidos e grava o estado "já avisei" |
 | `python -m radar run <tarefa> --todos --limite 1` | Ignora o "já avisei" e usa só N itens (teste de envio) |
+| `python -m radar destinatarios <destino> [--adicionar ...] [--remover ...]` | Mostra, adiciona ou remove e-mails de um destino (ex.: `teste`) sem apagar os demais |
 | `python -m radar base-referencia <tarefa>` | Registra o estoque atual como já conhecido **sem enviar nada** (rodar antes do primeiro `vigiar` real) |
 | `python -m radar vigiar <tarefa> --forcar-inativa` | Verifica (de graça) se a origem mudou; se sim, roda e avisa |
 | `python -m radar resumo <tarefa> [--real] [--canais ...]` | Resumo do estoque: prévia (padrão) ou envio; `--canais email:dono` envia só ao e-mail do dono |

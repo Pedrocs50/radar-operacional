@@ -96,7 +96,8 @@ def _resolver_enviador(canal: str, ctx: dict | None = None):
                 raise ErroDeEnvio("SEGREDO_AUSENTE") from None
             email_outlook.enviar(mensagem, lista, ctx["pasta"], ctx["nome_base"],
                                  modo=ctx["task"].get("email", {}).get("modo", "enviar"),
-                                 remetente=ctx["task"].get("email", {}).get("remetente"))
+                                 remetente=ctx["task"].get("email", {}).get("remetente"),
+                                 dominios=ctx.get("dominios"))
 
         return _enviar_email
 
@@ -208,7 +209,8 @@ def executar(
             # 1) entrega primeiro (só se há algo novo: sem novidade, sem mensagem)
             if itens_novos:
                 enviados, bloqueados = _entregar(task, mensagem, settings, enviadores or {},
-                                              {"pasta": pasta, "nome_base": f"{task['id']}_exec{exec_id}", "task": task})
+                                              {"pasta": pasta, "nome_base": f"{task['id']}_exec{exec_id}", "task": task,
+                                                  "dominios": settings.get("email", {}).get("dominios_permitidos")})
             # 2) só depois de entregar com sucesso é que o estado é gravado
             externos = [c for c in task.get("canais", ["preview"]) if c != "preview"]
             if enviados or not externos or not itens_novos:

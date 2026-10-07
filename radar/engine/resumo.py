@@ -88,7 +88,8 @@ def executar_resumo(task: dict, fonte, storage: Storage, crypto: Crypto, setting
             # canais=[...] limita o envio (ex.: só o e-mail do dono, para testar); envio parcial não marca o resumo como feito
             task_envio = {**task, "canais": canais} if canais else task
             enviados, bloqueados = _entregar(task_envio, mensagem, settings, enviadores or {},
-                                             {"pasta": pasta, "nome_base": base, "task": task})
+                                             {"pasta": pasta, "nome_base": base, "task": task,
+                                              "dominios": settings.get("email", {}).get("dominios_permitidos")})
             if not canais and (enviados or not [c for c in task.get("canais", []) if c != "preview"]):
                 storage.estado_set(chave_estado, _iso(agora))  # só marca o resumo como feito após entregar
         storage.finalizar_execucao(exec_id, "sucesso", n_itens=len(linhas), n_novos=len(novas))

@@ -17,10 +17,20 @@ from .base import ErroDeEnvio
 SCRIPT = Path(__file__).resolve().parent.parent.parent / "scripts" / "enviar_email.ps1"
 
 
-def parse_destinatarios(texto: str) -> list[str]:
+def dominio_permitido(email: str, dominios: list[str] | None) -> bool:
+    """Sem lista configurada, qualquer domínio vale. Com lista, o domínio (ou um subdomínio) precisa estar nela."""
+    if not dominios:
+        return True
+    dominio = email.rsplit("@", 1)[-1].lower()
+    return any(dominio == d.lower() or dominio.endswith("." + d.lower()) for d in dominios)
+
+
+def parse_destinatarios(texto: str, dominios: list[str] | None = None) -> list[str]:
     lista = [d for d in re.split(r"[;,\s]+", texto.strip()) if d]
     if not lista or any("@" not in d or any(ord(ch) < 32 for ch in d) for d in lista):
         raise ErroDeEnvio("EMAIL_DESTINATARIO_INVALIDO")
+    if any(not dominio_permitido(d, dominios) for d in lista):  # dado operacional só para contas corporativas
+        raise ErroDeEnvio("EMAIL_DOMINIO_NAO_PERMITIDO")
     return lista
 
 
@@ -42,9 +52,9 @@ def _enviar_pelo_outlook(descricao: dict, pasta: Path, nome_base: str) -> None:
 
 def enviar_html(destinatarios: str, assunto: str, html: str, pasta: str | Path, nome_base: str,
                 anexos: tuple = (), remetente: str | None = None, modo: str = "enviar",
-                enviador=_enviar_pelo_outlook) -> None:
+                enviador=_enviar_pelo_outlook, dominios: list[str] | None = None) -> None:
     """E-mail simples (HTML pronto), usado para avisos técnicos."""
-    para = parse_destinatarios(destinatarios)
+    para = parse_destinatarios(destinatarios, dominios)
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     arq = pasta / f"{nome_base}_email.html"
@@ -54,8 +64,9 @@ def enviar_html(destinatarios: str, assunto: str, html: str, pasta: str | Path, 
 
 
 def enviar(mensagem: dict, destinatarios: str, pasta: str | Path, nome_base: str,
-           modo: str = "enviar", remetente: str | None = None, enviador=_enviar_pelo_outlook) -> None:
-    para = parse_destinatarios(destinatarios)
+           modo: str = "enviar", remetente: str | None = None, enviador=_enviar_pelo_outlook,
+           dominios: list[str] | None = None) -> None:
+    para = parse_destinatarios(destinatarios, dominios)
     pasta = Path(pasta)
     arq = ec.gerar_arquivos(mensagem, pasta, nome_base)
     html = pasta / f"{nome_base}_email.html"

@@ -15,6 +15,11 @@ preview:
 retencao:
   mensagens_dias: 90          # mensagens renderizadas guardadas cifradas no banco
 
+email:
+  # E-mail só para estes domínios (e subdomínios): dado operacional não sai para contas pessoais.
+  # amer.teams.ms é o domínio do endereço de e-mail dos canais do Teams. Remova a chave para não restringir.
+  dominios_permitidos: [embraer.com.br, amer.teams.ms]
+
 sandbox:
   # Enquanto ativo, só os canais listados em canais_permitidos recebem envios reais.
   # Para liberar outro canal, adicione-o aqui de propósito.
