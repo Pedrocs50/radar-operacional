@@ -92,3 +92,8 @@ def test_pasta_de_preview_relativa_usa_a_raiz(task, storage, crypto, settings, t
     settings = {**settings, "preview": {"dir": "data/prev", "retencao_horas": 24}}
     r = executar(task, FonteFalsa(linhas("1")), storage, crypto, settings, dry_run=True)
     assert r["preview"].startswith(str(tmp_path / "data" / "prev"))
+
+
+def test_limite_corta_os_itens(task, storage, crypto, settings):
+    r = executar(task, FonteFalsa(linhas("1", "2", "3")), storage, crypto, settings, dry_run=True, limite=1)
+    assert r["n_novos"] == 1 and r["n_itens"] == 3

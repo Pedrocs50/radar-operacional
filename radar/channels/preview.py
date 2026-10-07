@@ -35,7 +35,7 @@ def limpar_antigos(pasta: str | Path, retencao_horas: float) -> int:
         return 0
     limite = time.time() - retencao_horas * 3600
     apagados = 0
-    for arq in pasta.glob("*.html"):
+    for arq in [*pasta.glob("*.html"), *pasta.glob("*.png"), *pasta.glob("*.xlsx")]:
         if arq.stat().st_mtime < limite:
             arq.unlink()
             apagados += 1

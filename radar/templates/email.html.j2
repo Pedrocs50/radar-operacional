@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>{{ m.titulo }}</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;color:#1f2933;font-size:14px;margin:0;padding:0;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:900px;">
+  <tr><td style="background:#c53030;color:#ffffff;padding:12px 16px;">
+    <div style="font-size:12px;font-weight:bold;">{{ m.marca }}</div>
+    <div style="font-size:20px;font-weight:bold;">{{ m.titulo }}</div>
+  </td></tr>
+  <tr><td style="padding:10px 16px;color:#52606d;font-size:12px;">
+    Dados de {{ m.dados_de }}{% if m.sandbox %} · <b style="color:#b7791f;">SANDBOX: mensagem de teste</b>{% endif %}
+  </td></tr>
+
+  <tr><td style="padding:6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">Visão geral</div>
+    <ul style="margin:6px 0 0 18px;padding:0;">
+      <li><b>{{ geral.total }}</b> CD(s) aberta(s) da GFW fora da área.</li>
+      {% if geral.mais_antiga_dias is not none %}
+      <li>Mais antiga: <b>{{ geral.mais_antiga_dias }} dias</b> em aberto (nota {{ geral.mais_antiga_nota }}).</li>
+      {% endif %}
+      {% if geral.media_dias is not none %}<li>Média: {{ geral.media_dias }} dias em aberto.</li>{% endif %}
+      {% if geral.faixas %}<li>Por faixa:
+        {% for f, n in geral.faixas %}{{ f }}: <b>{{ n }}</b>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endif %}
+      {% if geral.modelos %}<li>Por modelo:
+        {% for mod, n in geral.modelos %}{{ mod }}: <b>{{ n }}</b>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endif %}
+      {% if geral.cts %}<li>Onde estão (CT atual):
+        {% for ct, n in geral.cts %}{{ ct }}: <b>{{ n }}</b>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endif %}
+    </ul>
+  </td></tr>
+
+  {% if painel_src %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">Onde estão as CDs abertas</div>
+    <img src="{{ painel_src }}" alt="{{ painel_alt }}" style="max-width:100%;">
+  </td></tr>
+  {% endif %}
+
+  {% if m.indicadores %}{% set j7 = m.indicadores.janelas["7d"] %}{% set j30 = m.indicadores.janelas["30d"] %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">Resultados</div>
+    <table cellpadding="8" cellspacing="6" style="margin-top:6px;">
+      <tr>
+        <td style="background:#f0f4f8;border-radius:6px;" align="center"><div style="font-size:12px;color:#52606d;">Entraram (7 dias)</div><div style="font-size:24px;font-weight:bold;">{{ j7.entradas }}</div><div style="font-size:11px;color:#7b8794;">30 dias: {{ j30.entradas }}</div></td>
+        <td style="background:#f0f4f8;border-radius:6px;" align="center"><div style="font-size:12px;color:#52606d;">Resolvidas (7 dias)</div><div style="font-size:24px;font-weight:bold;">{{ j7.saidas }}</div><div style="font-size:11px;color:#7b8794;">30 dias: {{ j30.saidas }}</div></td>
+        <td style="background:#f0f4f8;border-radius:6px;" align="center"><div style="font-size:12px;color:#52606d;">Saldo (7 dias)</div><div style="font-size:24px;font-weight:bold;">{{ "%+d"|format(j7.saldo) }}</div><div style="font-size:11px;color:#7b8794;">30 dias: {{ "%+d"|format(j30.saldo) }}</div></td>
+        <td style="background:#f0f4f8;border-radius:6px;" align="center"><div style="font-size:12px;color:#52606d;">Tempo para resolver (30 dias)</div><div style="font-size:24px;font-weight:bold;">{{ j30.tempo_medio if j30.tempo_medio is not none else "-" }}{% if j30.tempo_medio is not none %}<span style="font-size:13px;"> dias</span>{% endif %}</div><div style="font-size:11px;color:#7b8794;">média de dias em aberto ({{ j30.amostra }} CD(s))</div></td>
+      </tr>
+    </table>
+    <div style="font-size:12px;color:#52606d;margin-top:2px;">Saldo = entraram - resolvidas (negativo = o estoque está diminuindo). CDs que já estavam fora da GFW quando o robô começou não contam como entrada.</div>
+    {% if grafico_src %}
+    <div style="font-size:14px;font-weight:bold;margin-top:10px;">Entraram e resolvidas por semana</div>
+    <img src="{{ grafico_src }}" alt="Gráfico de colunas: CDs que entraram e que foram resolvidas por semana" style="max-width:100%;">
+    <table cellpadding="3" cellspacing="0" style="font-size:12px;border-collapse:collapse;margin-top:4px;">
+      <tr style="color:#52606d;"><th align="left">Semana (início)</th>{% for s in m.indicadores.semanas %}<th>{{ s.rotulo }}{% if s.parcial %}*{% endif %}</th>{% endfor %}</tr>
+      <tr><td>Entraram</td>{% for s in m.indicadores.semanas %}<td align="center">{{ s.entradas }}</td>{% endfor %}</tr>
+      <tr><td>Resolvidas</td>{% for s in m.indicadores.semanas %}<td align="center">{{ s.saidas }}</td>{% endfor %}</tr>
+    </table>
+    {% endif %}
+  </td></tr>
+  {% endif %}
+
+  {% if m.tipo == "resumo" %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">Desde o último resumo ({{ m.desde_texto }})</div>
+    <ul style="margin:6px 0 0 18px;padding:0;">
+      <li><b style="color:#c53030;">{{ m.periodo.novas }}</b> CD(s) nova(s) fora da GFW (em vermelho na tabela).</li>
+      <li><b>{{ m.periodo.resolvida + m.periodo.voltou_gfw }}</b> resolvida(s) ou de volta à GFW.
+          Nos últimos 7 dias: <b>{{ m.resolvidas_7d }}</b>.</li>
+      <li><b>{{ m.periodo.mudou_ct }}</b> mudaram de CT.</li>
+      {% if m.periodo.saiu_criterio %}<li>{{ m.periodo.saiu_criterio }} continuam abertas, mas saíram das premissas do TURNBACK.</li>{% endif %}
+    </ul>
+    {% for e in m.eventos %}
+    <div style="margin-top:4px;font-size:13px;">
+      {% if e.tipo == "resolvida" %}✅ Resolvida{% elif e.tipo == "voltou_gfw" %}↩️ Voltou para a GFW
+      {% elif e.tipo == "mudou_ct" %}🔄 Mudou de CT{% elif e.tipo == "saiu_criterio" %}⚠️ Saiu das premissas{% else %}❓ Não localizada{% endif %}:
+      nota {{ e.nota }}{% if e.resumo %} · {{ e.resumo }}{% endif %}
+      {% if e.tipo == "mudou_ct" %} — {{ e.ct_antes or "?" }} → {{ e.ct_depois or "?" }}{% endif %}
+    </div>
+    {% endfor %}
+  </td></tr>
+  {% else %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;color:#c53030;">Chegou agora: {{ m.itens|length }} CD(s) nova(s)</div>
+    {% for item in m["itens"] %}
+    <table cellpadding="4" cellspacing="0" style="margin-top:8px;border:1px solid #f5b5b5;background:#fff5f5;width:100%;">
+      {% for rotulo, col in detalhe %}
+      <tr><td style="width:200px;font-weight:bold;vertical-align:top;">{{ rotulo }}</td>
+          <td style="vertical-align:top;">{{ item.get(col) if item.get(col) not in (none, "") else "-" }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endfor %}
+  </td></tr>
+  {% endif %}
+
+  {% if m.sinais %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">Pontos de atenção</div>
+    <div style="font-size:12px;color:#52606d;margin-bottom:4px;">Marcados em amarelo na tabela e na coluna "Atenção" do Excel.</div>
+    {% for nome in ["parada", "plano_vencido", "sem_plano", "sem_responsavel"] %}{% if nome in m.sinais %}
+    {% set s = m.sinais[nome] %}
+    <div style="margin-top:8px;font-weight:bold;">{{ s.icone }} {{ s.titulo }}{% if nome == "parada" %} (há {{ s.limite }}+ dias){% endif %}: {{ s.total }}</div>
+    {% if s.itens %}
+    <table cellpadding="3" cellspacing="0" style="font-size:13px;border-collapse:collapse;">
+      {% for i in s["itens"][:15] %}
+      <tr><td style="border-bottom:1px solid #e4e7eb;">Nota {{ i.nota }}</td>
+          <td style="border-bottom:1px solid #e4e7eb;">{{ i.resumo }}</td>
+          <td style="border-bottom:1px solid #e4e7eb;color:#9c4221;">{{ i.detalhe }}</td></tr>
+      {% endfor %}
+    </table>
+    {% if s.total > 15 %}<div style="font-size:12px;color:#52606d;">+ {{ s.total - 15 }} no Excel anexo.</div>{% endif %}
+    {% endif %}
+    {% endif %}{% endfor %}
+  </td></tr>
+  {% endif %}
+
+  {% if m.vazamento %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">De onde saem as CDs (CT de origem na GFW)</div>
+    <div style="font-size:12px;color:#52606d;margin-bottom:4px;">Entradas contam desde o início do acompanhamento; resolvidas, nos últimos 30 dias.</div>
+    <table cellpadding="4" cellspacing="0" style="font-size:13px;border-collapse:collapse;">
+      <tr style="background:#1f3a5f;color:#ffffff;"><th align="left">CT de origem</th><th>Abertas</th><th>%</th><th>Média (dias)</th>
+          <th>Entraram 7d</th><th>Entraram 30d</th><th>Resolvidas 30d</th></tr>
+      {% for v in m.vazamento %}
+      <tr><td style="border-bottom:1px solid #e4e7eb;">{{ v.ct }}</td>
+          <td align="center" style="border-bottom:1px solid #e4e7eb;"><b>{{ v.abertas }}</b></td>
+          <td align="center" style="border-bottom:1px solid #e4e7eb;">{{ v.percentual }}%</td>
+          <td align="center" style="border-bottom:1px solid #e4e7eb;">{{ v.media_dias if v.media_dias is not none else "-" }}</td>
+          <td align="center" style="border-bottom:1px solid #e4e7eb;">{{ v.entraram_7d }}</td>
+          <td align="center" style="border-bottom:1px solid #e4e7eb;">{{ v.entraram_30d }}</td>
+          <td align="center" style="border-bottom:1px solid #e4e7eb;">{{ v.resolvidas_30d }}</td></tr>
+      {% endfor %}
+    </table>
+  </td></tr>
+  {% endif %}
+
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;">Todas as CDs abertas fora da GFW</div>
+    <div style="font-size:12px;color:#52606d;margin-bottom:6px;">Vermelho = chegou {% if m.tipo == 'resumo' %}desde o último resumo{% else %}agora{% endif %}. O Excel anexo traz todas as colunas.</div>
+    <img src="{{ img_src }}" alt="Tabela das CDs abertas" style="max-width:100%;">
+  </td></tr>
+
+  <tr><td style="padding:14px 16px;font-size:11px;color:#7b8794;">
+    Aviso auxiliar gerado automaticamente. Não substitui o controle oficial nem o SAP.
+    Em caso de divergência, vale o sistema oficial.
+  </td></tr>
+</table>
+</body></html>

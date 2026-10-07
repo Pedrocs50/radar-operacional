@@ -31,7 +31,9 @@ def montar_fonte(task: dict, settings: dict):
     if tipo == "bigquery":
         from .sources.bigquery import BigQuerySource
 
-        return BigQuerySource(settings["bigquery"]["job_project"], RAIZ / task["fonte"]["sql_file"])
+        return BigQuerySource(settings["bigquery"]["job_project"], RAIZ / task["fonte"]["sql_file"],
+                              task["fonte"].get("tabela_monitorada"),
+                              settings["bigquery"].get("max_bytes_billed"))
     if tipo == "demo":
         from .sources.demo import DemoSource
 

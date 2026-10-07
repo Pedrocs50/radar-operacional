@@ -1,0 +1,132 @@
+id: cds_gfw_fora_da_area
+nome: CDs abertas da GFW fora da área
+descricao: >
+  CDs abertas (I0070) originadas nos 5 CTs da GFW (Pré-Junção, Junção,
+  Pré-Pintura, Pintura Final E1 e E2) que estão atualmente em outro CT,
+  já com as premissas do TURNBACK aplicadas. Uma linha por Nota QM.
+criado_por: pedro
+ativa: false          # só envia de verdade quando true
+modo: novas           # novas = alerta quando uma CD acaba de ficar fora da GFW
+
+fonte:
+  tipo: bigquery
+  sql_file: sql/cds_gfw_fora_da_area.sql
+  campo_chave: Nota_QM
+  # Metadado da tabela de origem: consultar a data da última carga custa zero.
+  # O comando `vigiar` só roda a consulta pesada quando essa data muda.
+  tabela_monitorada: emb-prd-it-data-lakehouse-d8ff.opp_intermediate.consolidated_zqlrqm150_medidas
+
+mensagem:
+  titulo: "Nova CD da GFW fora da área"
+  campos_exibidos:    # texto do bot; as 3 primeiras viram o título de cada item no Teams
+    - Nota_QM
+    - Modelo_Aeronave
+    - Serial_Exibicao
+    - Dias_em_Aberto
+    - Descricao_CT_Origem
+    - Descricao_CT_Atual
+    - Descricao_Area_Responsavel
+    - Nome_do_Responsavel_Proxima_Acao
+    - PN
+    - Descricao_do_Problema
+    - Fluxo
+  rotulos:
+    Nota_QM: "Nota QM"
+    Modelo_Aeronave: "Modelo"
+    Serial_Exibicao: "Serial"
+    Dias_em_Aberto: "Dias em aberto"
+    Descricao_CT_Origem: "CT de origem"
+    Descricao_CT_Atual: "CT atual"
+    Descricao_Area_Responsavel: "Área responsável"
+    Nome_do_Responsavel_Proxima_Acao: "Responsável pela próxima ação"
+    PN: "PN"
+    Descricao_do_Problema: "Problema"
+    Fluxo: "Fluxo"
+  imagem: true        # gera um PNG por CD com TODAS as colunas do SQL
+  campo_data_referencia: Data_da_Nota
+
+# E-mail: mostra TODAS as CDs abertas fora da GFW (as novas em vermelho) + visão geral.
+# Destinatários: segredo `email_destinatarios_teste` (não ficam no repositório).
+email:
+  # remetente: radar.operacional@embraer.com.br   # caixa compartilhada; exige a permissão "Enviar como"
+  modo: enviar            # "rascunho" abre o e-mail no Outlook sem enviar
+  colunas_tabela:         # colunas da tabela em imagem; o Excel anexo leva TODAS
+    - Nota_QM
+    - Dias_em_Aberto
+    - Modelo_Aeronave
+    - Serial_Exibicao
+    - Descricao_CT_Origem
+    - Descricao_CT_Atual
+    - Descricao_Area_Responsavel
+    - Nome_do_Responsavel_Proxima_Acao
+    - PN
+    - Descricao_do_Problema
+
+# Acompanhamento: o robô guarda (cifrado) uma foto das CDs a cada execução real e compara com a anterior.
+# - sumiu da lista  -> consulta a situação atual e classifica: resolvida / voltou para a GFW /
+#                      saiu das premissas do TURNBACK / não localizada
+# - campo crítico mudou (CT atual) -> "mudou de CT"
+acompanhamento:
+  titulo: "Movimentação de CDs da GFW"
+  campos_criticos: [Descricao_CT_Atual]
+  campos_snapshot:      # o que fica guardado (cifrado) para comparar e para mostrar depois
+    - Nota_QM
+    - Modelo_Aeronave
+    - Serial_Exibicao
+    - Dias_em_Aberto
+    - Descricao_CT_Origem
+    - Descricao_CT_Atual
+  campos_resumo: [Modelo_Aeronave, Serial_Exibicao]
+  sql_resolucao_file: sql/resolucao_cds.sql
+  cts_gfw: ["10024696", "10015205", "10010172", "10010866", "10015208"]
+
+# Sinais de atenção sobre o estoque (calculados com as colunas que o SQL já devolve). Aparecem no resumo,
+# no e-mail, na coluna "Atenção" do Excel/tabela (linha amarela) e no cartão do Teams. Desligue um com ativo: false.
+sinais:
+  fuso: America/Sao_Paulo
+  campos_resumo: [Modelo_Aeronave, Serial_Exibicao, Descricao_CT_Atual]
+  parada:                       # CD sem movimento (diferente de "aberta há X dias")
+    ativo: true
+    campo: Dias_sem_Fluxo
+    limite_dias: 7
+  plano:                        # plano vencido e sem plano
+    ativo: true
+    campo_fim: Data_Plan_Final
+    campo_hora_fim: Hora_Plan_Final
+  sem_responsavel:
+    ativo: true
+    campos: [Responsavel_Proxima_Acao, Nome_do_Responsavel_Proxima_Acao]
+  vazamento:                    # de quais CTs da GFW mais saem CDs
+    ativo: true
+    origem: Descricao_CT_Origem
+
+# Gráficos do relatório diário (só no resumo de 7h, 12h, 14h e 18h): uma imagem com um painel por linha abaixo.
+graficos:
+  ativo: true
+  top: 8                       # categorias por painel; o resto vira "Outros"
+  paineis:
+    - {titulo: "Onde estão agora (CT atual)", campo: Descricao_CT_Atual}
+    - {titulo: "CT de origem na GFW", campo: Descricao_CT_Origem}
+    - {titulo: "Por tipo de defeito", campo: Descricao_do_Tipo_de_Defeito}
+    - {titulo: "Por responsável pela próxima ação", campo: Nome_do_Responsavel_Proxima_Acao}
+
+# Indicadores de resultado (entradas x resolvidas por semana, saldo e tempo para resolver) no resumo e no e-mail.
+indicadores:
+  ativo: true
+  semanas: 8
+
+# Resumo periódico (agendar: scripts\agendar.ps1 cds_gfw_fora_da_area -ResumoHoras 07:00,12:00,14:00,18:00)
+resumo:
+  titulo: "Resumo das CDs da GFW fora da área"
+
+# Saúde do robô: falhas seguidas e retorno avisam o dono (e-mail) e o grupo (Teams); lacunas só o dono.
+saude:
+  limiar_falhas: 3        # verificações seguidas com erro (3 x 5 min = 15 min)
+  lacuna_min: 30          # minutos sem verificação que contam como "ficou fora do ar"
+  canal_dono: "email:dono"
+  canal_grupo: "teams:teste"
+
+audiencia: [pedro]
+canais: [preview, "teams:teste", "email:teste"]   # canal de teste só seu; não adicione pessoas antes de a TI liberar
+antispam:
+  nao_repetir_mesma_chave: true

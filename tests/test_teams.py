@@ -153,3 +153,16 @@ def test_sem_novidade_nao_envia(task_teams, storage, crypto, settings_teams):
     env = {"teams:x": enviados.append}
     executar(task_teams, FonteFalsa([]), storage, crypto, settings_teams, dry_run=False, enviadores=env)
     assert enviados == []
+
+
+def test_url_com_lixo_nao_vaza_no_erro():
+    import pytest as _pt
+    from radar.channels.base import ErroDeEnvio
+    from radar.channels.teams_webhook import enviar, url_bem_formada
+
+    ruim = "https://exemplo.com/a?sig=SEGREDO\x01\x17https://exemplo.com/a?sig=SEGREDO"
+    assert not url_bem_formada(ruim)
+    with _pt.raises(ErroDeEnvio) as e:
+        enviar({"titulo": "x", "dados_de": "y", "n_itens": 0, "n_novos": 0, "colunas": [], "itens": []}, ruim)
+    assert e.value.codigo == "TEAMS_URL_INVALIDA" and "SEGREDO" not in repr(e.value)
+    assert url_bem_formada("https://exemplo.com/a?sig=ok")

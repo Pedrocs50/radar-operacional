@@ -2,6 +2,8 @@ bigquery:
   # Projeto onde os JOBS rodam (precisa de bigquery.jobs.create).
   # Pode ser diferente do projeto onde a tabela fica. Ajuste se necessário.
   job_project: emb-prd-it-data-lakehouse-d8ff
+  # Teto por consulta: se uma consulta passar disso ela falha em vez de custar mais (hoje ~11,7 GB).
+  max_bytes_billed: 50000000000
 
 storage:
   db_path: data/radar.db
@@ -21,3 +23,5 @@ sandbox:
   canais_permitidos:
     - preview
     - "teams:teste"           # canal de teste só seu no Teams
+    - "email:teste"           # e-mail de teste (canal do Teams + você)
+    - "email:dono"            # avisos técnicos do robô, só para o dono
