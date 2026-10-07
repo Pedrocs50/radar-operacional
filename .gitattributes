@@ -1,0 +1,6 @@
+# Arquivos binarios: nunca converter quebras de linha (no Windows o autocrlf corromperia o PDF ao clonar)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.xlsx binary
+*.db binary

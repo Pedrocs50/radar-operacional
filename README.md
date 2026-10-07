@@ -341,7 +341,7 @@ tasks/       uma tarefa por YAML (fonte, mensagem, canais, acompanhamento, sinai
 scripts/     rodar.ps1, vigiar.ps1, resumo.ps1, agendar.ps1, enviar_email.ps1
 tests/       pytest, com dados fictícios
 data/        SQLite, prévias, imagens e logs (fora do git)
-docs/        descrição inicial do projeto (PDF; anterior às funcionalidades mais recentes)
+docs/        documentação técnica do projeto (PDF): funcionamento, decisões, estado atual e guia para retomar o trabalho
 ```
 
 ## Decisões de projeto
