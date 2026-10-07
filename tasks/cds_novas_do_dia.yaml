@@ -1,0 +1,29 @@
+id: cds_novas_do_dia
+nome: Novas CDs do dia (GFW / Escape)
+descricao: >
+  CDs de classificação Escape, no centro SJK1, das CTs da GFW, com status
+  I0070 (aberta) ou I0072 (encerrada), do dia mais recente da base.
+criado_por: pedro
+ativa: false          # só envia de verdade quando true
+modo: novas           # novas = avisa só o que ainda não foi avisado
+
+fonte:
+  tipo: bigquery      # use "demo" para testar sem BigQuery
+  sql_file: sql/cds_novas_do_dia.sql
+  campo_chave: Nota   # identificador único do item (vira índice cego)
+
+mensagem:
+  titulo: "CDs novas do dia"
+  campos_exibidos:    # ordem das colunas na prévia
+    - Nota
+    - NS_Aviao
+    - Desc_CT_Atual
+    - Descricao_Tipo_Defeito
+    - Item_Codificacao
+    - Descricao_do_Problema
+  campo_data_referencia: Data_da_CD
+
+audiencia: [pedro]
+canais: [preview]
+antispam:
+  nao_repetir_mesma_chave: true

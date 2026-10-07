@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ m.titulo }}</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; margin: 24px; color: #1f2933; background: #f5f7fa; }
+  .card { background: #fff; border: 1px solid #d9e2ec; border-radius: 8px; padding: 20px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { color: #52606d; font-size: 13px; margin-bottom: 16px; }
+  .resumo { display: flex; gap: 12px; margin-bottom: 16px; }
+  .kpi { background: #f0f4f8; border-radius: 6px; padding: 10px 14px; }
+  .kpi b { display: block; font-size: 22px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e4e7eb; vertical-align: top; }
+  th { background: #f0f4f8; }
+  .aviso { margin-top: 16px; font-size: 12px; color: #7b8794; }
+  .tag { display: inline-block; font-size: 11px; background: #fef3c7; border-radius: 4px; padding: 2px 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>{{ m.titulo }}</h1>
+  <div class="meta">
+    Dados de {{ m.dados_de }} · Tarefa: {{ m.task_id }} ·
+    {% if m.dry_run %}<span class="tag">DRY-RUN (nada foi registrado)</span>{% else %}<span class="tag">Execução real</span>{% endif %}
+    {% if m.sandbox %}<span class="tag">SANDBOX: só para {{ m.destinatarios | join(", ") }}</span>{% endif %}
+  </div>
+
+  <div class="resumo">
+    <div class="kpi"><b>{{ m.n_itens }}</b>itens na leitura</div>
+    <div class="kpi"><b>{{ m.n_novos }}</b>novos (ainda não avisados)</div>
+    {% if m.data_referencia %}<div class="kpi"><b>{{ m.data_referencia }}</b>data de referência</div>{% endif %}
+  </div>
+
+  {% if m.itens %}
+  <table>
+    <thead><tr>{% for c in m.colunas %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for it in m.itens %}
+      <tr>{% for c in m.colunas %}<td>{{ it.get(c, "") }}</td>{% endfor %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Nenhum item novo nesta leitura.</p>
+  {% endif %}
+
+  <p class="aviso">Aviso auxiliar gerado automaticamente. Não substitui o controle oficial
+  nem o sistema de origem (SAP). Em caso de divergência, vale o sistema oficial.</p>
+</div>
+</body>
+</html>

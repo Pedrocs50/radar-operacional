@@ -1,0 +1,14 @@
+# Dados e segredos NUNCA vão para o repositório
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+*.key
+credentials*.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

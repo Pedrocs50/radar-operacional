@@ -1,0 +1,5 @@
+[
+  {"Nota": "900001", "Descricao_do_Problema": "DADO FICTICIO - exemplo A", "Item_Codificacao": "ITEM-A", "Desc_CT_Atual": "CT DEMO 1", "Desc_Classificacao": "ESCAPE DEMO", "NS_Aviao": "AV-0001", "Descricao_Tipo_Defeito": "Defeito demo 1", "Data_da_CD": "2026-10-06"},
+  {"Nota": "900002", "Descricao_do_Problema": "DADO FICTICIO - exemplo B", "Item_Codificacao": "ITEM-B", "Desc_CT_Atual": "CT DEMO 2", "Desc_Classificacao": "ESCAPE DEMO", "NS_Aviao": "AV-0002", "Descricao_Tipo_Defeito": "Defeito demo 2", "Data_da_CD": "2026-10-06"},
+  {"Nota": "900003", "Descricao_do_Problema": "DADO FICTICIO - exemplo C", "Item_Codificacao": "ITEM-C", "Desc_CT_Atual": "CT DEMO 1", "Desc_Classificacao": "ESCAPE DEMO", "NS_Aviao": "AV-0003", "Descricao_Tipo_Defeito": "Defeito demo 3", "Data_da_CD": "2026-10-06"}
+]

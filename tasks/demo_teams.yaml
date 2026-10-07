@@ -1,0 +1,29 @@
+id: demo_teams
+nome: Demonstração com envio ao Teams (dados fictícios)
+descricao: >
+  Mesmo fluxo da demo, mas também publica no canal de teste do Teams.
+  Usa só dados FICTÍCIOS, para validar a cadeia completa sem expor dado operacional.
+criado_por: pedro
+ativa: true
+modo: novas
+
+fonte:
+  tipo: demo
+  arquivo: tests/fixtures/demo_cds.json
+  campo_chave: Nota
+
+mensagem:
+  titulo: "CDs novas do dia (DEMO)"
+  campos_exibidos:
+    - Nota
+    - NS_Aviao
+    - Desc_CT_Atual
+    - Descricao_Tipo_Defeito
+    - Item_Codificacao
+    - Descricao_do_Problema
+  campo_data_referencia: Data_da_CD
+
+audiencia: [pedro]
+canais: [preview, "teams:teste"]
+antispam:
+  nao_repetir_mesma_chave: true

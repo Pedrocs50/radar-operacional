@@ -1,0 +1,27 @@
+id: demo
+nome: Demonstração (dados fictícios, sem BigQuery)
+descricao: Para testar o fluxo completo e a prévia sem acesso a nada externo.
+criado_por: pedro
+ativa: true
+modo: novas
+
+fonte:
+  tipo: demo
+  arquivo: tests/fixtures/demo_cds.json
+  campo_chave: Nota
+
+mensagem:
+  titulo: "CDs novas do dia (DEMO)"
+  campos_exibidos:
+    - Nota
+    - NS_Aviao
+    - Desc_CT_Atual
+    - Descricao_Tipo_Defeito
+    - Item_Codificacao
+    - Descricao_do_Problema
+  campo_data_referencia: Data_da_CD
+
+audiencia: [pedro]
+canais: [preview]
+antispam:
+  nao_repetir_mesma_chave: true
