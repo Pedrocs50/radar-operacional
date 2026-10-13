@@ -292,6 +292,61 @@ def cmd_simular(args):
         return 1
 
 
+def cmd_backup(args):
+    """Copia o banco (cifrado) para a pasta de backup, confere a integridade e aplica a retenção."""
+    from . import manutencao
+
+    settings = config.carregar_settings()
+    try:
+        r = manutencao.fazer_backup(settings)
+    except manutencao.ErroDeManutencao as e:
+        print(f"Backup falhou: {e.codigo}")
+        return 1
+    print(f"Backup gravado: {r['arquivo']} ({r['tamanho'] / 1e6:.1f} MB), integridade conferida.")
+    for copia in r["copias"]:
+        print(f"Cópia extra: {copia}")
+    if r["removidos"]:
+        print(f"Backups antigos removidos (retenção): {r['removidos']}")
+    print("Lembrete: o backup NÃO inclui as chaves de cifragem; guarde-as separadas.")
+
+
+def cmd_vida(args):
+    """Aviso diário "estou vivo" ao dono. Sem --enviar só mostra no terminal."""
+    from . import vida
+
+    settings = config.carregar_settings()
+    task = config.carregar_tarefa(args.task)
+    _, st = _abrir(settings)
+    info = vida.coletar(st, task["id"], settings)
+    problemas = vida.avaliar(info)
+    titulo, texto, nivel = vida.montar(info, problemas)
+    print(f"[{nivel.upper()}] {titulo}\n{texto}")
+    if not args.enviar:
+        print("\nNada foi enviado. Use --enviar para mandar ao dono (email:dono).")
+        return 1 if problemas else 0
+    try:
+        saude.montar_avisador(settings, task)("dono", titulo, texto, nivel)
+    except (RuntimeError, ErroDeEnvio) as e:
+        print(f"Falha ao enviar: {getattr(e, 'codigo', 'SEGREDO_AUSENTE')}")
+        return 1
+    print("Enviado ao dono.")
+    return 1 if problemas else 0
+
+
+def cmd_atualizar(args):
+    """git pull + dependências + testes. Mostra a versão antes e depois, para poder voltar atrás se algo falhar."""
+    from . import manutencao
+
+    resultados = manutencao.atualizar(sem_testes=args.sem_testes)
+    for passo, ok, detalhe in resultados:
+        print(f"[{'OK' if ok else 'FALHOU'}] {passo}: {detalhe}")
+    if any(not ok for _, ok, _ in resultados):
+        antes = resultados[0][2] if resultados and resultados[0][1] else "?"
+        print(f"\nA atualização parou num erro. Para voltar à versão anterior: git checkout {antes}")
+        return 1
+    print("\nAtualizado. Rode também: python -m radar doctor <tarefa>")
+
+
 def cmd_doctor(args):
     """Confere chaves, segredos, banco, BigQuery, Outlook, tarefas agendadas e sandbox (sem enviar nada)."""
     from . import doctor
@@ -407,6 +462,18 @@ def main(argv=None):
     s.add_argument("--enviar", action="store_true", help="posta os cartões de exemplo no canal de teste do Teams")
     s.add_argument("--canal", default="teams:teste")
     s.set_defaults(fn=cmd_simular)
+
+    s = sub.add_parser("backup", help="copia o banco (cifrado) para a pasta de backup e confere a integridade")
+    s.set_defaults(fn=cmd_backup)
+
+    s = sub.add_parser("vida", help="aviso diário 'estou vivo' ao dono (sem --enviar só mostra)")
+    s.add_argument("task", nargs="?", default="cds_gfw_fora_da_area")
+    s.add_argument("--enviar", action="store_true")
+    s.set_defaults(fn=cmd_vida)
+
+    s = sub.add_parser("atualizar", help="git pull, dependências e testes")
+    s.add_argument("--sem-testes", action="store_true")
+    s.set_defaults(fn=cmd_atualizar)
 
     s = sub.add_parser("doctor", help="confere o ambiente (chaves, segredos, BigQuery, Outlook, agendamentos)")
     s.add_argument("task", nargs="?", help="tarefa a considerar (ex.: cds_gfw_fora_da_area)")

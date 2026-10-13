@@ -5,6 +5,11 @@ bigquery:
   # Teto por consulta: se uma consulta passar disso ela falha em vez de custar mais (hoje ~11,7 GB).
   max_bytes_billed: 50000000000
 
+backup:
+  pasta: data/backups          # cópias consistentes do banco (cifrado). As CHAVES não vão no backup: guarde-as à parte.
+  manter: 14                   # quantas cópias manter em cada pasta
+  copiar_para: []              # pastas extras em OUTRO disco ou unidade de rede, ex.: ["D:\\Backups\\Radar"]
+
 storage:
   db_path: data/radar.db
 

@@ -209,6 +209,20 @@ class Storage:
                                  (task_id, n))
         return [dict(r) for r in rows]
 
+    def estatisticas(self, task_id: str, desde: str) -> dict:
+        """Números das últimas horas para o aviso diário "estou vivo" (execuções do vigia e do resumo da tarefa)."""
+        q = lambda sql, *a: self.conn.execute(sql, a).fetchone()
+        ex = q("SELECT COUNT(*), COALESCE(SUM(n_novos),0), COALESCE(SUM(bytes_processados),0), "
+               "COALESCE(SUM(status='falha'),0) FROM execucoes WHERE task_id IN (?,?) AND dry_run=0 AND inicio>=?",
+               task_id, task_id + ":resumo", desde)
+        vf = q("SELECT COUNT(*), COALESCE(SUM(ok=0),0) FROM verificacoes WHERE task_id=? AND em>=?", task_id, desde)
+        ultima = q("SELECT MAX(em) FROM verificacoes WHERE task_id=?", task_id)[0]
+        carga = q("SELECT COUNT(*), MAX(modificada_em) FROM atualizacoes_tabela WHERE task_id=? AND detectada_em>=?",
+                  task_id, desde)
+        return {"execucoes": ex[0], "novos": ex[1], "bytes": ex[2], "execucoes_falhas": ex[3],
+                "verificacoes": vf[0], "verificacoes_falhas": vf[1], "ultima_verificacao": ultima,
+                "cargas": carga[0], "ultima_carga": carga[1]}
+
     def estado_get(self, chave: str, padrao: str | None = None) -> str | None:
         row = self.conn.execute("SELECT valor FROM estado WHERE chave=?", (chave,)).fetchone()
         return row["valor"] if row else padrao

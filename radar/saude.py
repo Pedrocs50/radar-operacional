@@ -128,9 +128,11 @@ def montar_avisador(settings: dict, task: dict, enviar_email=email_outlook.envia
             if not liberado(canal):
                 return
             lista = segredos.obter("email_destinatarios_" + canal.split(":", 1)[1])
-            cauda = _cauda_do_log(task["id"])
+            info = nivel == "info"   # aviso informativo (ex.: "estou vivo"): sem prefixo de alerta e sem log
+            cauda = "" if info else _cauda_do_log(task["id"])
             corpo = texto + ("\n\nÚltimas linhas do log:\n" + cauda if cauda else "")
-            enviar_email(lista, f"[Radar · alerta técnico] {titulo}", html_simples(titulo, corpo), pasta, "saude",
+            prefixo = "[Radar]" if info else "[Radar · alerta técnico]"
+            enviar_email(lista, f"{prefixo} {titulo}", html_simples(titulo, corpo), pasta, "saude",
                          dominios=settings.get("email", {}).get("dominios_permitidos"))
         else:
             canal = cfg.get("canal_grupo", "teams:teste")

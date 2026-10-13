@@ -21,6 +21,7 @@ A aplicação principal é o acompanhamento das **CDs abertas originadas na GFW 
 | Resumo periódico | E-mail completo e cartão compacto às 7h, 12h, 14h e 18h, com o que se movimentou desde o último |
 | E-mail | Visão geral, tabela de todas as CDs (nova em vermelho, atenção em amarelo) e Excel com todas as colunas |
 | Saúde do robô | Avisa o dono por e-mail e o grupo no Teams em caso de falhas seguidas, e quando volta ao normal |
+| Confiabilidade | Backup diário do banco, aviso diário "estou vivo" ao dono e atualização com um comando |
 | Segurança | Cifragem por campo, índice cego (HMAC), segredos no Credential Manager, logs sem conteúdo, sandbox de canais |
 
 ## Como funciona o alerta (tarefa cds_gfw_fora_da_area)
@@ -227,11 +228,14 @@ Com o usuário que roda o robô (ele precisa estar conectado: o login do gcloud,
 ```powershell
 powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -VigiarACadaMin 5
 powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -ResumoHoras 07:00,12:00,14:00,18:00
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -VidaHora 06:45
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -BackupHora 03:00
 ```
 
-Cria `Radar-vigia-cds_gfw_fora_da_area` e `Radar-resumo-cds_gfw_fora_da_area` no Agendador de Tarefas. Conferir lá a conta,
+Cria `Radar-vigia-cds_gfw_fora_da_area`, `Radar-resumo-cds_gfw_fora_da_area`, `Radar-vida-cds_gfw_fora_da_area` e
+`Radar-backup` no Agendador de Tarefas. Conferir lá a conta,
 "Executar somente quando o usuário estiver conectado" e que a máquina não hiberna. Testar com "Executar" e ver os logs em
-`data\logs` (`vigia-*.log`, `resumo-*.log`).
+`data\logs` (`vigia-*.log`, `resumo-*.log`, `vida-*.log`, `backup-*.log`).
 
 ### 7. Operar
 
@@ -248,17 +252,46 @@ Get-ScheduledTask | Where-Object TaskName -like 'Radar*'     # o que está agend
 ```powershell
 Unregister-ScheduledTask -TaskName "Radar-vigia-cds_gfw_fora_da_area" -Confirm:$false
 Unregister-ScheduledTask -TaskName "Radar-resumo-cds_gfw_fora_da_area" -Confirm:$false
+Unregister-ScheduledTask -TaskName "Radar-vida-cds_gfw_fora_da_area" -Confirm:$false
+Unregister-ScheduledTask -TaskName "Radar-backup" -Confirm:$false
 python -m radar limpar                                         # apaga prévias, imagens e Excel antigos
 ```
 
 Para remover os dados de uma máquina: apagar `data\` (banco, prévias, logs) e os itens `radar-operacional` e os segredos no
 Gerenciador de Credenciais do Windows.
 
+### Confiabilidade e operação remota
+
+**Aviso diário "estou vivo"** (`radar vida`, às 06:45): e-mail curto **só ao dono** (`email:dono`) com a situação do robô
+nas últimas 24 h: verificações do vigia e falhas, cargas da origem detectadas, execuções, CDs novas, GB lidos, último
+resumo, último backup, espaço em disco e a versão do código. Um robô desligado não consegue avisar que parou, então **a
+ausência desse e-mail é o alarme**: se ele não chegar às 06:45, algo parou (máquina, sessão aberta, Outlook ou agendador).
+Se o robô está de pé mas com problema (vigia parado há mais de 30 min, falhas, backup com mais de 36 h, menos de 2 GB livres),
+o assunto vem com **ATENÇÃO**. Só lê o banco e o disco: não consulta o BigQuery, não custa nada.
+`python -m radar vida cds_gfw_fora_da_area` mostra o mesmo no terminal sem enviar; `--enviar` manda ao dono.
+
+**Backup do banco** (`radar backup`, às 03:00): copia `data\radar.db` para `data\backups\radar-AAAAMMDD-HHMMSS.db` usando a
+API de backup do SQLite (cópia consistente com o robô rodando), confere a integridade da cópia e mantém as últimas
+`backup.manter` (14). Em `config\settings.yaml`, `backup.copiar_para` aceita pastas extras em **outro disco ou unidade de
+rede**, o que é recomendado: um backup no mesmo disco não protege contra falha do disco. O banco já é cifrado, mas **as chaves
+não entram no backup** e precisam de backup próprio e separado (passo 3).
+
+**Restaurar um backup:** desagendar o vigia e o resumo, copiar o arquivo escolhido sobre `data\radar.db` (apagando
+`radar.db-wal` e `radar.db-shm` se existirem), conferir com `radar doctor` e reagendar. É preciso ter as mesmas chaves.
+
+**Atualizar o código** (`radar atualizar`): `git pull --ff-only`, instala as dependências e roda os testes. Mostra a versão
+antes e depois e, se algo falhar, diz como voltar (`git checkout <versão anterior>`). `--sem-testes` pula os testes.
+
+**Acesso ao servidor:** quando a TI liberar VPN e Área de Trabalho Remota, o acesso é por RDP (desconectar a sessão é seguro;
+sair/fazer logoff para as tarefas). Não instalar ferramentas de acesso remoto por conta própria: elas contornam os controles de
+segurança. Enquanto não houver acesso, o aviso diário, os alertas de falha e os comandos acima reduzem a necessidade de entrar
+na máquina (por exemplo, `radar destinatarios` para mudar quem recebe).
+
 ### Configuração
 
 | Onde | O que ajustar |
 |---|---|
-| `config\settings.yaml` | `bigquery.job_project` (projeto onde os jobs rodam), `bigquery.max_bytes_billed` (teto por consulta), `storage.db_path`, `preview.retencao_horas`, `retencao.mensagens_dias`, `email.dominios_permitidos`, `sandbox` |
+| `config\settings.yaml` | `bigquery.job_project` (projeto onde os jobs rodam), `bigquery.max_bytes_billed` (teto por consulta), `storage.db_path`, `preview.retencao_horas`, `retencao.mensagens_dias`, `email.dominios_permitidos`, `backup`, `sandbox` |
 | `tasks\cds_gfw_fora_da_area.yaml` | `canais` (destinos), `email.modo` e `email.remetente`, `sinais` (limites), `graficos` (painéis), `indicadores`, `saude`, `acompanhamento`, `mensagem` (colunas e rótulos) |
 
 **Sandbox:** enquanto `sandbox.ativo: true`, só os canais listados em `sandbox.canais_permitidos` recebem envio real, e os
@@ -326,6 +359,9 @@ do SQL; trate-o como dado operacional.
 | `python -m radar run <tarefa>` | Dry-run: gera prévia, imagens e e-mail de prévia; **não** grava estado nem envia |
 | `python -m radar run <tarefa> --real --forcar-inativa` | Entrega aos canais permitidos e grava o estado "já avisei" |
 | `python -m radar run <tarefa> --todos --limite 1` | Ignora o "já avisei" e usa só N itens (teste de envio) |
+| `python -m radar backup` | Copia o banco (cifrado) para `data\backups` e pastas extras, confere a integridade e aplica a retenção |
+| `python -m radar vida [tarefa] [--enviar]` | Aviso diário "estou vivo" ao dono; sem `--enviar` só mostra |
+| `python -m radar atualizar [--sem-testes]` | `git pull`, dependências e testes; indica como voltar se falhar |
 | `python -m radar destinatarios <destino> [--adicionar ...] [--remover ...]` | Mostra, adiciona ou remove e-mails de um destino (ex.: `teste`) sem apagar os demais |
 | `python -m radar base-referencia <tarefa>` | Registra o estoque atual como já conhecido **sem enviar nada** (rodar antes do primeiro `vigiar` real) |
 | `python -m radar vigiar <tarefa> --forcar-inativa` | Verifica (de graça) se a origem mudou; se sim, roda e avisa |
@@ -341,7 +377,7 @@ do SQL; trate-o como dado operacional.
 | `python -m pytest` | Roda os testes |
 
 Scripts (PowerShell) em `scripts\`: `rodar.ps1` (execução real com log), `vigiar.ps1` (verificação do vigia), `resumo.ps1`,
-`agendar.ps1` (cria as tarefas agendadas) e `enviar_email.ps1` (usado pelo canal de e-mail; não é para uso manual).
+`vida.ps1` (aviso diário), `backup.ps1`, `agendar.ps1` (cria as tarefas agendadas) e `enviar_email.ps1` (usado pelo canal de e-mail; não é para uso manual).
 
 ## Custo do BigQuery
 
@@ -368,6 +404,7 @@ radar/
   engine/    runner.py (fonte -> novos -> mensagem -> canais -> estado -> log), movimentos.py, sinais.py,
              indicadores.py, paineis.py, resumo.py
   saude.py   avisos de falha e recuperação      doctor.py  diagnóstico do ambiente
+  vida.py    aviso diário "estou vivo"          manutencao.py  backup do banco e atualização do código
   simulacao.py  exemplos de cartões e e-mail    templates/  preview.html.j2, email.html.j2
 config/      settings.yaml (projeto do BigQuery, teto de custo, retenção, sandbox)
 sql/         cds_gfw_fora_da_area.sql, cds_novas_do_dia.sql (consultas originais, sem alterações), resolucao_cds.sql

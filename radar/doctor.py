@@ -6,6 +6,7 @@ Serve para validar uma máquina nova (servidor) antes de agendar. Cada verifica�
 from __future__ import annotations
 
 import subprocess
+from datetime import datetime
 
 from . import config, segredos
 from .storage import crypto as cr
@@ -74,5 +75,14 @@ def verificar(settings: dict, task: dict | None = None) -> list[tuple[str, bool,
     checar("BigQuery", bigquery)
     checar("Outlook", outlook)
     checar("tarefas agendadas", agendadas)
+    def backup():
+        from . import manutencao
+
+        ult = manutencao.ultimo_backup(settings)
+        if ult is None:
+            return True, "nenhum backup ainda (rode: python -m radar backup)"
+        return True, f"último backup em {ult:%d/%m %H:%M} (há {(datetime.now() - ult).total_seconds() / 3600:.1f} h)"
+
+    checar("backup do banco", backup)
     checar("sandbox", sandbox)
     return r
