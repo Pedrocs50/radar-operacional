@@ -107,7 +107,8 @@ def _cauda_do_log(task_id: str, linhas: int = 15) -> str:
     arquivos = sorted(pasta.glob(f"vigia-{task_id}-*.log")) if pasta.exists() else []
     if not arquivos:
         return ""
-    return "\n".join(arquivos[-1].read_text(encoding="utf-8", errors="replace").splitlines()[-linhas:])
+    ultimas = "\n".join(arquivos[-1].read_text(encoding="utf-8-sig", errors="replace").splitlines()[-linhas:])
+    return f"({arquivos[-1].name})\n{ultimas}"
 
 
 def montar_avisador(settings: dict, task: dict, enviar_email=email_outlook.enviar_html,

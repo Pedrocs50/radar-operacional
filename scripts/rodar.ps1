@@ -8,6 +8,7 @@ New-Item -ItemType Directory -Force $logs | Out-Null
 $log = Join-Path $logs "$Tarefa-$(Get-Date -Format yyyy-MM-dd).log"
 $py = Join-Path $raiz ".venv\Scripts\python.exe"
 $env:PYTHONIOENCODING = "utf-8"
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}   # console padrao (OEM 850) estraga os acentos do log
 "=== $(Get-Date -Format s) run ===" | Out-File $log -Append -Encoding utf8
 & $py -W ignore -m radar run $Tarefa --real --forcar-inativa 2>&1 | Out-File $log -Append -Encoding utf8
 "exit=$LASTEXITCODE" | Out-File $log -Append -Encoding utf8
