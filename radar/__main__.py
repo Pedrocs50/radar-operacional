@@ -318,6 +318,12 @@ def cmd_vida(args):
     task = config.carregar_tarefa(args.task)
     _, st = _abrir(settings)
     info = vida.coletar(st, task["id"], settings)
+    try:  # esquema da tabela de origem (só metadado, custo zero)
+        from . import esquema
+
+        info["esquema"] = esquema.verificar(task, config.montar_fonte(task, settings), st)
+    except Exception as e:  # só o tipo; sem rede ou sem permissão não derruba o aviso diário
+        info["esquema"] = {"erro": type(e).__name__}
     problemas = vida.avaliar(info)
     titulo, texto, nivel = vida.montar(info, problemas)
     print(f"[{nivel.upper()}] {titulo}\n{texto}")
@@ -331,6 +337,33 @@ def cmd_vida(args):
         return 1
     print("Enviado ao dono.")
     return 1 if problemas else 0
+
+
+def cmd_canario(args):
+    """Teste semanal do Teams: posta um cartão discreto em cada canal e avisa o dono se falhar."""
+    from . import canario
+
+    settings = config.carregar_settings()
+    task = config.carregar_tarefa(args.task)
+    _, st = _abrir(settings)
+    res = canario.executar(task, settings, st, saude.montar_avisador(settings, task), enviar_de_verdade=args.enviar)
+    for canal, r in res["resultados"].items():
+        print(f"{canal}: {r}")
+    if not res["resultados"]:
+        print("Nenhum canal do Teams permitido nesta tarefa.")
+    if not args.enviar:
+        print("\nNada foi enviado. Use --enviar para postar o cartão de verificação.")
+        return 0
+    return 1 if res["falhas"] else 0
+
+
+def cmd_chaves_ok(args):
+    """Registra que o backup das chaves de cifragem foi conferido (silencia o lembrete do aviso diário)."""
+    from datetime import datetime, timezone
+
+    _, st = _abrir(config.carregar_settings())
+    st.estado_set("chaves_confirmadas", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    print("Registrado: backup das chaves confirmado. O lembrete volta em 90 dias.")
 
 
 def cmd_atualizar(args):
@@ -470,6 +503,14 @@ def main(argv=None):
     s.add_argument("task", nargs="?", default="cds_gfw_fora_da_area")
     s.add_argument("--enviar", action="store_true")
     s.set_defaults(fn=cmd_vida)
+
+    s = sub.add_parser("canario", help="teste semanal do Teams (sem --enviar só mostra o que testaria)")
+    s.add_argument("task", nargs="?", default="cds_gfw_fora_da_area")
+    s.add_argument("--enviar", action="store_true")
+    s.set_defaults(fn=cmd_canario)
+
+    s = sub.add_parser("chaves-ok", help="registra que o backup das chaves de cifragem foi conferido")
+    s.set_defaults(fn=cmd_chaves_ok)
 
     s = sub.add_parser("atualizar", help="git pull, dependências e testes")
     s.add_argument("--sem-testes", action="store_true")

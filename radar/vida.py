@@ -6,6 +6,7 @@ Só lê o banco e o disco: não consulta o BigQuery, então não custa nada.
 """
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from datetime import datetime, timedelta, timezone
@@ -15,6 +16,8 @@ from . import config, manutencao
 LIMITE_VERIFICACAO_MIN = 30      # vigia sem verificar há mais que isso = parado
 LIMITE_BACKUP_H = 36
 LIMITE_DISCO_GB = 2.0
+LIMITE_CANARIO_DIAS = 10
+LEMBRETE_CHAVES_DIAS = 90
 
 
 def _iso(dt: datetime) -> str:
@@ -40,6 +43,8 @@ def coletar(storage, task_id: str, settings: dict, agora: datetime | None = None
     except OSError:
         livre = None
     resumo_ultimo = storage.estado_get(f"resumo_ultimo:{task_id}")
+    canario = storage.estado_get(f"canario:{task_id}")
+    chaves = storage.estado_get("chaves_confirmadas")
     return {
         "agora": agora, "tarefa": task_id, "verificacoes": e["verificacoes"], "falhas_vigia": e["verificacoes_falhas"],
         "minutos_sem_verificar": int((agora - ultima).total_seconds() // 60) if ultima else None,
@@ -49,6 +54,8 @@ def coletar(storage, task_id: str, settings: dict, agora: datetime | None = None
         "ultimo_resumo": datetime.fromisoformat(resumo_ultimo).astimezone() if resumo_ultimo else None,
         "horas_desde_backup": round((datetime.now() - backup).total_seconds() / 3600, 1) if backup else None,
         "disco_livre_gb": round(livre, 1) if livre is not None else None, "versao": _versao(),
+        "canario": json.loads(canario) if canario else None,
+        "chaves_confirmadas": datetime.fromisoformat(chaves).astimezone() if chaves else None,
     }
 
 
@@ -69,6 +76,18 @@ def avaliar(info: dict) -> list[str]:
         p.append(f"o último backup tem {info['horas_desde_backup']} h")
     if info["disco_livre_gb"] is not None and info["disco_livre_gb"] < LIMITE_DISCO_GB:
         p.append(f"pouco espaço em disco: {info['disco_livre_gb']} GB livres")
+    c = info.get("canario")
+    if c and c["falhas"]:
+        p.append("o último teste semanal do Teams falhou: " + ", ".join(f"{k} ({v})" for k, v in c["falhas"].items()))
+    elif c:
+        dias = (info["agora"] - datetime.fromisoformat(c["em"])).days
+        if dias > LIMITE_CANARIO_DIAS:
+            p.append(f"o teste semanal do Teams não roda há {dias} dias")
+    esq = info.get("esquema")
+    if esq and not esq.get("erro") and not esq["primeira_vez"] and (esq["removidas"] or esq["tipo_mudou"]):
+        partes = ([f"removidas: {', '.join(esq['removidas'][:5])}"] if esq["removidas"] else []) + \
+                 ([f"tipo alterado: {', '.join(esq['tipo_mudou'][:5])}"] if esq["tipo_mudou"] else [])
+        p.append("o esquema da tabela de origem mudou (" + "; ".join(partes) + "); confira se o SQL ainda funciona")
     return p
 
 
@@ -87,6 +106,23 @@ def montar(info: dict, problemas: list[str]) -> tuple[str, str, str]:
         "Último backup: " + (f"há {info['horas_desde_backup']} h" if info["horas_desde_backup"] is not None else "nenhum")
         + ("; espaço livre em disco: " + str(info["disco_livre_gb"]) + " GB." if info["disco_livre_gb"] is not None else "."),
     ]
+    c = info.get("canario")
+    if c:
+        quando = datetime.fromisoformat(c["em"]).astimezone().strftime("%d/%m %H:%M")
+        linhas.append(f"Teste semanal do Teams: {'falhou' if c['falhas'] else 'ok'} em {quando}.")
+    esq = info.get("esquema")
+    if esq and esq.get("erro"):
+        linhas.append(f"Esquema da tabela: não consegui conferir ({esq['erro']}).")
+    elif esq and esq["primeira_vez"]:
+        linhas.append(f"Esquema da tabela: base de comparação criada ({esq['colunas']} colunas).")
+    elif esq:
+        extra = f"; novas colunas: {', '.join(esq['adicionadas'][:5])}" if esq["adicionadas"] else ""
+        linhas.append(f"Esquema da tabela: {'igual à última conferência' if not (esq['removidas'] or esq['tipo_mudou'] or esq['adicionadas']) else 'mudou'}{extra}.")
+    ch = info.get("chaves_confirmadas")
+    if ch is None or (datetime.now().astimezone() - ch).days > LEMBRETE_CHAVES_DIAS:
+        linhas.append("LEMBRETE: confirme que as chaves de cifragem têm backup separado do banco (sem elas o histórico é "
+                      "irrecuperável) e registre com: python -m radar chaves-ok. Última confirmação: "
+                      + (ch.strftime("%d/%m/%Y") if ch else "nunca") + ".")
     if problemas:
         linhas = ["Pontos de atenção:"] + [f"- {p}" for p in problemas] + [""] + linhas
     return titulo, "\n".join(linhas), ("info" if not problemas else "atencao")

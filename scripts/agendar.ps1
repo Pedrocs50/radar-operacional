@@ -6,8 +6,9 @@
 #   Resumos nos horarios:      scripts\agendar.ps1 cds_gfw_fora_da_area -ResumoHoras 07:00,12:00,14:00,18:00
 #   Aviso diario "estou vivo": scripts\agendar.ps1 cds_gfw_fora_da_area -VidaHora 06:45
 #   Backup diario do banco:    scripts\agendar.ps1 cds_gfw_fora_da_area -BackupHora 03:00
+#   Teste semanal do Teams:    scripts\agendar.ps1 cds_gfw_fora_da_area -CanarioHora 06:50   (segundas-feiras)
 param([Parameter(Mandatory)][string]$Tarefa, [string]$Hora = "08:00", [int]$VigiarACadaMin = 0,
-      [string[]]$ResumoHoras = @(), [string]$VidaHora = "", [string]$BackupHora = "")
+      [string[]]$ResumoHoras = @(), [string]$VidaHora = "", [string]$BackupHora = "", [string]$CanarioHora = "")
 $ResumoHoras = @($ResumoHoras | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $argumento = $Tarefa
 if ($ResumoHoras.Count -gt 0) {
@@ -22,6 +23,10 @@ if ($ResumoHoras.Count -gt 0) {
     $script = Join-Path $PSScriptRoot "vida.ps1"
     $gatilho = New-ScheduledTaskTrigger -Daily -At $VidaHora
     $nome = "Radar-vida-$Tarefa"
+} elseif ($CanarioHora -ne "") {
+    $script = Join-Path $PSScriptRoot "canario.ps1"
+    $gatilho = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At $CanarioHora
+    $nome = "Radar-canario-$Tarefa"
 } elseif ($BackupHora -ne "") {
     $script = Join-Path $PSScriptRoot "backup.ps1"
     $gatilho = New-ScheduledTaskTrigger -Daily -At $BackupHora

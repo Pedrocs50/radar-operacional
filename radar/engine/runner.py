@@ -133,6 +133,38 @@ def _entregar(task: dict, mensagem: dict, settings: dict, enviadores: dict,
     return enviados, bloqueados
 
 
+def _entregar_alertas(task: dict, novos: list, mensagem: dict, settings: dict, enviadores: dict, storage: Storage,
+                      ignorar_entregas: bool, ctx: dict | None = None):
+    """Alerta de CD nova, canal por canal e de forma independente.
+
+    Cada canal tem o seu próprio registro de "já entreguei": se o Teams cair, o e-mail sai igual (e vice-versa), e na nova
+    tentativa só os canais que falharam são repetidos, sem reenviar duplicado aos que já receberam. Retorna
+    (enviados, bloqueados_pelo_sandbox, primeiro_erro_de_envio_ou_None)."""
+    sandbox = settings.get("sandbox", {})
+    permitidos = set(sandbox.get("canais_permitidos", ["preview"]))
+    enviados, bloqueados, erro = [], [], None
+    for canal in task.get("canais", ["preview"]):
+        if canal == "preview":
+            continue
+        if sandbox.get("ativo", True) and canal not in permitidos:
+            bloqueados.append(canal)
+            continue
+        ja = set() if ignorar_entregas else storage.hashes_entregues(task["id"], canal)
+        pendentes = [(h, l) for h, l in novos if h not in ja]
+        if not pendentes:
+            enviados.append(canal)  # já tinha sido entregue em uma tentativa anterior
+            continue
+        parcial = {**mensagem, "itens": [l for _, l in pendentes], "n_novos": len(pendentes)}
+        try:
+            (enviadores.get(canal) or _resolver_enviador(canal, ctx))(parcial)
+        except ErroDeEnvio as e:
+            erro = erro or e
+            continue
+        storage.registrar_entregas(task["id"], canal, [h for h, _ in pendentes])
+        enviados.append(canal)
+    return enviados, bloqueados, erro
+
+
 def executar(
     task: dict,
     fonte,
@@ -208,9 +240,12 @@ def executar(
         if not dry_run:
             # 1) entrega primeiro (só se há algo novo: sem novidade, sem mensagem)
             if itens_novos:
-                enviados, bloqueados = _entregar(task, mensagem, settings, enviadores or {},
-                                              {"pasta": pasta, "nome_base": f"{task['id']}_exec{exec_id}", "task": task,
-                                                  "dominios": settings.get("email", {}).get("dominios_permitidos")})
+                enviados, bloqueados, erro = _entregar_alertas(
+                    task, novos, mensagem, settings, enviadores or {}, storage, forcar_todos,
+                    {"pasta": pasta, "nome_base": f"{task['id']}_exec{exec_id}", "task": task,
+                     "dominios": settings.get("email", {}).get("dominios_permitidos")})
+                if erro:
+                    raise erro  # os demais canais já foram tentados; só os que falharam repetem na próxima verificação
             # 2) só depois de entregar com sucesso é que o estado é gravado
             externos = [c for c in task.get("canais", ["preview"]) if c != "preview"]
             if enviados or not externos or not itens_novos:

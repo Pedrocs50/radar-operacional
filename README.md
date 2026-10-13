@@ -7,6 +7,121 @@ Teams e por e-mail. O BI responde "como está?"; o Radar responde "o que mudou e
 A aplicação principal é o acompanhamento das **CDs abertas originadas na GFW que estão em outro centro de trabalho**
 (tarefa `cds_gfw_fora_da_area`).
 
+**Atalhos:** [Guia rápido (colocar para rodar)](#guia-rápido-colocar-para-rodar-no-servidor) ·
+[Dia a dia](#dia-a-dia-comandos-mais-usados) · [Implantação detalhada](#implantação-no-servidor) ·
+[Todos os comandos](#comandos)
+
+## Guia rápido: colocar para rodar no servidor
+
+Todos os comandos em sequência, para copiar e colar no **PowerShell** do servidor (o mesmo usuário que vai rodar o robô).
+Cada bloco tem a explicação no próprio comentário; os detalhes e os motivos estão em [Implantação no servidor](#implantação-no-servidor).
+Os comandos usam `.venv\Scripts\python`, então **não é preciso ativar o ambiente**.
+
+**Antes de começar (uma vez):** Git, Python 3.12+ e Google Cloud CLI instalados; **Outlook clássico aberto e logado**; fluxo do
+Teams criado no canal (modelo "Send webhook alerts to a channel") com a URL **copiada**; endereço de e-mail do canal conhecido
+(`...` do canal -> **Obter endereço de e-mail**); sessão do Windows que ficará aberta e máquina sem suspensão.
+
+**1. Baixar e instalar**
+
+```powershell
+New-Item -ItemType Directory -Force C:\Repositorios | Out-Null; cd C:\Repositorios
+git clone https://github.com/Pedrocs50/radar-operacional.git "Radar Operacional"
+cd "Radar Operacional"
+python -m venv .venv                                  # se "python" não for reconhecido, use: py -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+**2. Entrar no BigQuery** (abre o navegador; use a conta que roda o robô)
+
+```powershell
+gcloud auth application-default login
+```
+
+**3. Chaves de cifragem** (instalação nova; para migrar o histórico de outra máquina, veja o passo 3 da implantação)
+
+```powershell
+.venv\Scripts\python -m radar init-keys
+```
+
+**4. Guardar os segredos.** Para cada comando: **copie o valor com Ctrl+C**, rode o comando e pronto (o valor não aparece na tela).
+
+```powershell
+# copie a URL do fluxo do Teams, depois:
+.venv\Scripts\python -W ignore -m radar guardar-segredo teams_webhook_teste --da-area-de-transferencia
+# copie "endereco-do-canal@amer.teams.ms; seu.email@empresa.com.br", depois:
+.venv\Scripts\python -W ignore -m radar guardar-segredo email_destinatarios_teste --da-area-de-transferencia
+# copie só o seu e-mail corporativo (avisos técnicos), depois:
+.venv\Scripts\python -W ignore -m radar guardar-segredo email_destinatarios_dono --da-area-de-transferencia
+```
+
+**5. Conferir tudo antes de agendar** (os dois primeiros não enviam nada; os demais enviam só para o canal de teste e para o dono)
+
+```powershell
+.venv\Scripts\python -W ignore -m radar doctor cds_gfw_fora_da_area                  # deve terminar em "Ambiente em ordem"
+.venv\Scripts\python -m pytest -q                                                    # testes
+.venv\Scripts\python -W ignore -m radar custo cds_gfw_fora_da_area                   # ~11,7 GB (só estimativa)
+.venv\Scripts\python -W ignore -m radar teams-teste teste                            # mensagem de teste chega no canal
+.venv\Scripts\python -W ignore -m radar simular --enviar                             # cartões de EXEMPLO no canal de teste
+.venv\Scripts\python -W ignore -m radar run cds_gfw_fora_da_area                     # dry-run: gera prévias, não envia nada
+.venv\Scripts\python -W ignore -m radar resumo cds_gfw_fora_da_area --real --canais email:dono --forcar-inativa   # e-mail completo só ao dono
+.venv\Scripts\python -W ignore -m radar canario cds_gfw_fora_da_area --enviar        # teste do Teams (cartão discreto no canal)
+.venv\Scripts\python -W ignore -m radar backup                                       # primeiro backup do banco
+```
+
+**6. Base de referência** (obrigatória antes do vigia: sem ela, as CDs que já estão fora da GFW seriam alertadas todas de uma vez)
+
+```powershell
+.venv\Scripts\python -W ignore -m radar base-referencia cds_gfw_fora_da_area         # não envia nada
+```
+
+**7. Agendar** (nesta ordem; espere uns 10 minutos entre o vigia e o aviso diário, para ele já ter o que mostrar)
+
+```powershell
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -VigiarACadaMin 5                       # alerta de CD nova (a cada 5 min)
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -ResumoHoras 07:00,12:00,14:00,18:00    # resumos com gráficos
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -VidaHora 06:45                         # aviso diário "estou vivo" (só ao dono)
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -BackupHora 03:00                       # backup diário do banco
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -CanarioHora 06:50                      # teste semanal do Teams (segundas)
+```
+
+**8. Confirmar que ficou rodando**
+
+```powershell
+Get-ScheduledTask | Where-Object TaskName -like 'Radar*' | Select TaskName, State      # as 5 tarefas, "Ready"
+Start-ScheduledTask -TaskName "Radar-vigia-cds_gfw_fora_da_area"                        # roda o vigia agora, para testar
+Start-Sleep 60; Get-Content "data\logs\vigia-cds_gfw_fora_da_area-*.log" -Tail 5       # deve mostrar a verificação
+.venv\Scripts\python -W ignore -m radar vida cds_gfw_fora_da_area --enviar              # aviso "estou vivo" agora, ao dono
+.venv\Scripts\python -W ignore -m radar chaves-ok                                       # depois de guardar o backup das chaves
+```
+
+**O que esperar no primeiro dia:** o vigia só consulta quando a tabela é carregada; sem CD nova não chega mensagem. Às 06:45 chega o
+aviso "estou vivo" (se não chegar, algo parou) e às 07:00, 12:00, 14:00 e 18:00 os resumos por e-mail e no canal.
+
+### Dia a dia: comandos mais usados
+
+```powershell
+cd "C:\Repositorios\Radar Operacional"
+.venv\Scripts\python -W ignore -m radar status cds_gfw_fora_da_area          # OK ou ALERTA (última execução real)
+.venv\Scripts\python -W ignore -m radar vida cds_gfw_fora_da_area            # situação do robô (sem enviar)
+.venv\Scripts\python -W ignore -m radar historico                            # últimas execuções e GB lidos
+.venv\Scripts\python -W ignore -m radar atualizacoes cds_gfw_fora_da_area    # cadência das cargas (define o custo)
+.venv\Scripts\python -W ignore -m radar doctor cds_gfw_fora_da_area          # diagnóstico do ambiente
+.venv\Scripts\python -W ignore -m radar destinatarios teste                  # quem recebe os e-mails hoje
+.venv\Scripts\python -W ignore -m radar destinatarios teste --adicionar maria@empresa.com.br      # adicionar uma pessoa
+.venv\Scripts\python -W ignore -m radar destinatarios teste --remover maria@empresa.com.br        # remover uma pessoa
+.venv\Scripts\python -W ignore -m radar backup                               # backup do banco agora
+.venv\Scripts\python -W ignore -m radar atualizar                            # baixa a versão nova e confere (git pull + testes)
+.venv\Scripts\python -W ignore -m radar simular                              # cartões de exemplo, sem enviar
+Get-ChildItem data\logs | Sort LastWriteTime -Desc | Select -First 5         # logs mais recentes
+```
+
+**Parar tudo** (por exemplo, antes de manutenção ou ao desligar a máquina):
+
+```powershell
+Get-ScheduledTask | Where-Object TaskName -like 'Radar*' | Disable-ScheduledTask      # pausa (reativar: Enable-ScheduledTask)
+Get-ScheduledTask | Where-Object TaskName -like 'Radar*' | Unregister-ScheduledTask -Confirm:$false   # remove de vez
+```
+
 ## Funcionalidades
 
 | Funcionalidade | Descrição |
@@ -21,7 +136,7 @@ A aplicação principal é o acompanhamento das **CDs abertas originadas na GFW 
 | Resumo periódico | E-mail completo e cartão compacto às 7h, 12h, 14h e 18h, com o que se movimentou desde o último |
 | E-mail | Visão geral, tabela de todas as CDs (nova em vermelho, atenção em amarelo) e Excel com todas as colunas |
 | Saúde do robô | Avisa o dono por e-mail e o grupo no Teams em caso de falhas seguidas, e quando volta ao normal |
-| Confiabilidade | Backup diário do banco, aviso diário "estou vivo" ao dono e atualização com um comando |
+| Confiabilidade | Entrega independente por canal (Teams e e-mail não dependem um do outro), teste semanal do Teams, vigia do esquema da tabela, backup diário, aviso diário "estou vivo" e atualização com um comando |
 | Segurança | Cifragem por campo, índice cego (HMAC), segredos no Credential Manager, logs sem conteúdo, sandbox de canais |
 
 ## Como funciona o alerta (tarefa cds_gfw_fora_da_area)
@@ -230,12 +345,13 @@ powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -VigiarACadaMin 5
 powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -ResumoHoras 07:00,12:00,14:00,18:00
 powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -VidaHora 06:45
 powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -BackupHora 03:00
+powershell -File scripts\agendar.ps1 cds_gfw_fora_da_area -CanarioHora 06:50
 ```
 
-Cria `Radar-vigia-cds_gfw_fora_da_area`, `Radar-resumo-cds_gfw_fora_da_area`, `Radar-vida-cds_gfw_fora_da_area` e
-`Radar-backup` no Agendador de Tarefas. Conferir lá a conta,
+Cria `Radar-vigia-cds_gfw_fora_da_area`, `Radar-resumo-cds_gfw_fora_da_area`, `Radar-vida-cds_gfw_fora_da_area`,
+`Radar-backup` e `Radar-canario-cds_gfw_fora_da_area` (segundas-feiras) no Agendador de Tarefas. Conferir lá a conta,
 "Executar somente quando o usuário estiver conectado" e que a máquina não hiberna. Testar com "Executar" e ver os logs em
-`data\logs` (`vigia-*.log`, `resumo-*.log`, `vida-*.log`, `backup-*.log`).
+`data\logs` (`vigia-*.log`, `resumo-*.log`, `vida-*.log`, `backup-*.log`, `canario-*.log`).
 
 ### 7. Operar
 
@@ -254,6 +370,7 @@ Unregister-ScheduledTask -TaskName "Radar-vigia-cds_gfw_fora_da_area" -Confirm:$
 Unregister-ScheduledTask -TaskName "Radar-resumo-cds_gfw_fora_da_area" -Confirm:$false
 Unregister-ScheduledTask -TaskName "Radar-vida-cds_gfw_fora_da_area" -Confirm:$false
 Unregister-ScheduledTask -TaskName "Radar-backup" -Confirm:$false
+Unregister-ScheduledTask -TaskName "Radar-canario-cds_gfw_fora_da_area" -Confirm:$false
 python -m radar limpar                                         # apaga prévias, imagens e Excel antigos
 ```
 
@@ -269,6 +386,24 @@ ausência desse e-mail é o alarme**: se ele não chegar às 06:45, algo parou (
 Se o robô está de pé mas com problema (vigia parado há mais de 30 min, falhas, backup com mais de 36 h, menos de 2 GB livres),
 o assunto vem com **ATENÇÃO**. Só lê o banco e o disco: não consulta o BigQuery, não custa nada.
 `python -m radar vida cds_gfw_fora_da_area` mostra o mesmo no terminal sem enviar; `--enviar` manda ao dono.
+
+**Entrega independente por canal.** O alerta de CD nova vai a cada canal (Teams, e-mail) de forma separada, cada um com o seu
+registro de "já entreguei". Se o Teams estiver fora do ar, o e-mail sai do mesmo jeito (e vice-versa); na nova tentativa, a
+cada 5 minutos, só o canal que falhou é repetido, **sem reenviar duplicado** a quem já recebeu. O item só é marcado como
+avisado quando todos os canais permitidos receberam. `--todos` ignora esses registros e reenvia.
+
+**Teste semanal do Teams** (`radar canario`, segundas às 06:50): o fluxo do Teams está ligado à conta de quem o criou; se a conta
+for desativada ou o fluxo apagado, o robô passaria a falhar em silêncio. O teste posta um cartão discreto, sem dado operacional
+("verificação semanal de conexão"), em cada canal do Teams permitido. Se falhar, o dono recebe um e-mail com o código e as
+causas comuns. O resultado aparece no aviso diário, que entra em ATENÇÃO se o último teste falhou ou se ele não roda há mais
+de 10 dias. Sem `--enviar`, o comando só mostra o que testaria.
+
+**Vigia do esquema da tabela** (dentro do aviso diário): compara as colunas da tabela de origem (só metadado do BigQuery, custo
+zero) com as da véspera e avisa quando colunas somem ou mudam de tipo (ATENÇÃO, pois o SQL pode quebrar) ou aparecem
+(informativo). Cada mudança é acusada uma vez; o primeiro dia só cria a base de comparação.
+
+**Lembrete do backup das chaves:** o aviso diário lembra de confirmar que as chaves de cifragem têm backup separado do banco,
+até você registrar com `python -m radar chaves-ok`; o lembrete volta a cada 90 dias.
 
 **Backup do banco** (`radar backup`, às 03:00): copia `data\radar.db` para `data\backups\radar-AAAAMMDD-HHMMSS.db` usando a
 API de backup do SQLite (cópia consistente com o robô rodando), confere a integridade da cópia e mantém as últimas
@@ -359,6 +494,8 @@ do SQL; trate-o como dado operacional.
 | `python -m radar run <tarefa>` | Dry-run: gera prévia, imagens e e-mail de prévia; **não** grava estado nem envia |
 | `python -m radar run <tarefa> --real --forcar-inativa` | Entrega aos canais permitidos e grava o estado "já avisei" |
 | `python -m radar run <tarefa> --todos --limite 1` | Ignora o "já avisei" e usa só N itens (teste de envio) |
+| `python -m radar canario [tarefa] [--enviar]` | Teste semanal do Teams; falha avisa o dono. Sem `--enviar` só mostra |
+| `python -m radar chaves-ok` | Registra que o backup das chaves foi conferido (silencia o lembrete por 90 dias) |
 | `python -m radar backup` | Copia o banco (cifrado) para `data\backups` e pastas extras, confere a integridade e aplica a retenção |
 | `python -m radar vida [tarefa] [--enviar]` | Aviso diário "estou vivo" ao dono; sem `--enviar` só mostra |
 | `python -m radar atualizar [--sem-testes]` | `git pull`, dependências e testes; indica como voltar se falhar |
@@ -377,7 +514,7 @@ do SQL; trate-o como dado operacional.
 | `python -m pytest` | Roda os testes |
 
 Scripts (PowerShell) em `scripts\`: `rodar.ps1` (execução real com log), `vigiar.ps1` (verificação do vigia), `resumo.ps1`,
-`vida.ps1` (aviso diário), `backup.ps1`, `agendar.ps1` (cria as tarefas agendadas) e `enviar_email.ps1` (usado pelo canal de e-mail; não é para uso manual).
+`vida.ps1` (aviso diário), `backup.ps1`, `canario.ps1`, `agendar.ps1` (cria as tarefas agendadas) e `enviar_email.ps1` (usado pelo canal de e-mail; não é para uso manual).
 
 ## Custo do BigQuery
 
@@ -405,6 +542,7 @@ radar/
              indicadores.py, paineis.py, resumo.py
   saude.py   avisos de falha e recuperação      doctor.py  diagnóstico do ambiente
   vida.py    aviso diário "estou vivo"          manutencao.py  backup do banco e atualização do código
+  canario.py teste semanal do Teams            esquema.py  vigia do esquema da tabela de origem
   simulacao.py  exemplos de cartões e e-mail    templates/  preview.html.j2, email.html.j2
 config/      settings.yaml (projeto do BigQuery, teto de custo, retenção, sandbox)
 sql/         cds_gfw_fora_da_area.sql, cds_novas_do_dia.sql (consultas originais, sem alterações), resolucao_cds.sql
@@ -435,8 +573,7 @@ docs/        documentação técnica do projeto (PDF): funcionamento, decisões,
   A versão sem essa dependência usa Microsoft Graph (`Mail.Send`) trocando só `channels/email_outlook.py`; para sair em nome
   de uma caixa compartilhada, `email.remetente` (permissão "Enviar como").
 - O aviso nunca é mais atualizado que a carga do SAP para o BigQuery (a mensagem mostra "dados de HH:MM").
-- Se uma tarefa tiver dois canais externos e só o segundo falhar, o primeiro é reenviado na nova tentativa. Se o processo cair
-  entre entregar e gravar o estado, o alerta pode ser reenviado uma vez.
+- Se o processo cair entre entregar e gravar o registro de entrega de um canal, o alerta pode ser reenviado uma vez a esse canal.
 - Imagens não cabem no webhook do Teams (~28 KB por cartão); elas vão por e-mail.
 - O remetente no Teams é o app "Workflows" da Microsoft; nome e foto próprios exigem um bot registrado.
 - No Teams, os membros só são notificados se ativarem as notificações do canal (ou com @menção, ainda não implementada).

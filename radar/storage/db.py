@@ -69,6 +69,13 @@ CREATE TABLE IF NOT EXISTS estado (           -- chave/valor simples (situação
     chave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS entregas (         -- alerta de CD nova já entregue, por canal (evita reenvio duplicado)
+    task_id TEXT NOT NULL,
+    id_hash TEXT NOT NULL,
+    canal   TEXT NOT NULL,
+    quando  TEXT NOT NULL,
+    PRIMARY KEY (task_id, id_hash, canal)
+);
 CREATE INDEX IF NOT EXISTS ix_eventos_task ON eventos(task_id, quando);
 CREATE INDEX IF NOT EXISTS ix_verif_task ON verificacoes(task_id, id);
 CREATE INDEX IF NOT EXISTS ix_exec_task ON execucoes(task_id, inicio);
@@ -198,6 +205,17 @@ class Storage:
         rows = self.conn.execute("SELECT id_hash FROM alertas WHERE task_id=? AND primeiro_em>=?", (task_id, desde))
         return {r["id_hash"] for r in rows}
 
+    # ------------------------------------------------------ entregas por canal
+    def hashes_entregues(self, task_id: str, canal: str) -> set[str]:
+        rows = self.conn.execute("SELECT id_hash FROM entregas WHERE task_id=? AND canal=?", (task_id, canal))
+        return {r["id_hash"] for r in rows}
+
+    def registrar_entregas(self, task_id: str, canal: str, hashes: list[str]):
+        for h in hashes:
+            self.conn.execute("INSERT OR IGNORE INTO entregas (task_id, id_hash, canal, quando) VALUES (?,?,?,?)",
+                              (task_id, h, canal, agora()))
+        self.conn.commit()
+
     # --------------------------------------------------------- saúde do robô
     def registrar_verificacao(self, task_id: str, ok: bool, codigo_erro: str | None = None):
         self.conn.execute("INSERT INTO verificacoes (task_id, em, ok, codigo_erro) VALUES (?,?,?,?)",
@@ -273,6 +291,7 @@ class Storage:
             "(SELECT MAX(id) FROM execucoes WHERE dry_run=0 GROUP BY task_id)", (limite,))]
         for i in ids:
             self.conn.execute("DELETE FROM snapshots WHERE execucao_id=?", (i,))
+        self.conn.execute("DELETE FROM entregas WHERE quando < ?", (limite,))
         cur = self.conn.execute("DELETE FROM verificacoes WHERE em < ?", (limite,))
         self.conn.commit()
         return len(ids) + cur.rowcount

@@ -45,6 +45,11 @@ class BigQuerySource:
         _, client = self._client()
         return client.get_table(self.tabela_monitorada).modified.isoformat()
 
+    def esquema(self) -> dict[str, str]:
+        """{coluna: tipo} da tabela de origem. Só metadado: não lê dados, custo zero."""
+        _, client = self._client()
+        return {f.name: f.field_type for f in client.get_table(self.tabela_monitorada).schema}
+
     def estimar_custo(self) -> dict:
         """dry_run: não executa, só informa quantos bytes seriam lidos."""
         bigquery, client = self._client()

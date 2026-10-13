@@ -83,6 +83,22 @@ def verificar(settings: dict, task: dict | None = None) -> list[tuple[str, bool,
             return True, "nenhum backup ainda (rode: python -m radar backup)"
         return True, f"último backup em {ult:%d/%m %H:%M} (há {(datetime.now() - ult).total_seconds() / 3600:.1f} h)"
 
+    def canario():
+        import json
+
+        from .storage import crypto as cr2
+        from .storage.db import Storage as St
+
+        st = St(config.RAIZ / settings["storage"]["db_path"], cr2.carregar_crypto())
+        bruto = st.estado_get(f"canario:{(task or {}).get('id', '')}")
+        st.close()
+        if not bruto:
+            return True, "teste semanal do Teams ainda não rodou (python -m radar canario --enviar)"
+        c = json.loads(bruto)
+        return not c["falhas"], f"último teste em {c['em'][:16]} UTC: " + ("ok" if not c["falhas"] else "FALHOU " + str(c["falhas"]))
+
     checar("backup do banco", backup)
+    if task:
+        checar("teste semanal do Teams", canario)
     checar("sandbox", sandbox)
     return r
