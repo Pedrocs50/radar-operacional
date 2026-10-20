@@ -8,9 +8,10 @@
 #   Backup diario do banco:    scripts\agendar.ps1 cds_gfw_fora_da_area -BackupHora 03:00
 #   Teste semanal do Teams:    scripts\agendar.ps1 cds_gfw_fora_da_area -CanarioHora 06:50   (segundas-feiras)
 param([Parameter(Mandatory)][string]$Tarefa, [string]$Hora = "08:00", [int]$VigiarACadaMin = 0,
-      [string[]]$ResumoHoras = @(), [string]$VidaHora = "", [string]$BackupHora = "", [string]$CanarioHora = "")
+      [string[]]$ResumoHoras = @(), [string]$VidaHora = "", [string]$BackupHora = "", [string]$CanarioHora = "",
+      [ValidateSet('teste','producao','operacional','real')][string]$Destino = 'teste')
 $ResumoHoras = @($ResumoHoras | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
-$argumento = $Tarefa
+$argumento = "$Tarefa --destino $Destino"
 if ($ResumoHoras.Count -gt 0) {
     $script = Join-Path $PSScriptRoot "resumo.ps1"
     $gatilho = @($ResumoHoras | ForEach-Object { New-ScheduledTaskTrigger -Daily -At $_ })

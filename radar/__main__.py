@@ -39,6 +39,30 @@ def _ler_area_de_transferencia() -> str:
     return r.stdout.strip()
 
 
+def _destino_padrao(destino: str | None) -> str:
+    if destino is None:
+        return "teste"
+    d = destino.strip().lower().replace("-", "")
+    if d in {"teste", "test", "homolog", "homologacao", "dev"}:
+        return "teste"
+    if d in {"producao", "prod", "operacional", "real", "produção"}:
+        return "producao"
+    return destino.strip().lower()
+
+
+def _aplicar_destino(task: dict, settings: dict, destino: str | None):
+    destino = _destino_padrao(destino)
+    if destino == "teste":
+        settings = {**settings, "sandbox": {**settings.get("sandbox", {}), "ativo": True}}
+        task = {**task, "canais": [c for c in task.get("canais", ["preview"]) if c in {"preview", "teams:teste", "email:teste"}] or ["preview", "teams:teste", "email:teste"]}
+        return task, settings
+    if destino in {"producao", "operacional", "real"}:
+        settings = {**settings, "sandbox": {**settings.get("sandbox", {}), "ativo": False}}
+        task = {**task, "canais": [c for c in task.get("canais", ["preview"]) if c in {"preview", "teams:operacional", "email:operacional"}] or ["preview", "teams:operacional", "email:operacional"]}
+        return task, settings
+    return task, settings
+
+
 def cmd_guardar_segredo(args):
     if args.da_area_de_transferencia:
         valor = _ler_area_de_transferencia()
@@ -82,6 +106,7 @@ def cmd_listar(args):
 def cmd_run(args):
     settings = config.carregar_settings()
     task = config.carregar_tarefa(args.task)
+    task, settings = _aplicar_destino(task, settings, args.destino)
     c, st = _abrir(settings)
     real = args.real
     if real and not task.get("ativa", False) and not args.forcar_inativa:
@@ -239,6 +264,7 @@ def cmd_resumo(args):
     """Resumo periódico do estoque (ver radar/engine/resumo.py). Dry-run por padrão."""
     settings = config.carregar_settings()
     task = config.carregar_tarefa(args.task)
+    task, settings = _aplicar_destino(task, settings, args.destino)
     if args.real and not task.get("ativa", False) and not args.forcar_inativa:
         print("Tarefa está com ativa: false. Use --forcar-inativa para enviar mesmo assim.")
         return 2
@@ -448,6 +474,8 @@ def main(argv=None):
     s = sub.add_parser("run", help="executa uma tarefa (dry-run por padrão)")
     s.add_argument("task")
     s.add_argument("--real", action="store_true", help="envia aos canais e registra snapshot e estado de alertas")
+    s.add_argument("--destino", choices=["teste", "producao", "operacional", "real"], default="teste",
+                   help="altera o ambiente de envio sem mexer no YAML: teste ou producao")
     s.add_argument("--todos", action="store_true", help="mostra todos os itens, não só os novos")
     s.add_argument("--forcar-inativa", action="store_true")
     s.add_argument("--limite", type=int, help="usa só os N primeiros itens (para testar o envio)")
@@ -485,6 +513,8 @@ def main(argv=None):
     s = sub.add_parser("resumo", help="resumo do estoque (7h/12h/14h/18h): e-mail completo + cartão no Teams")
     s.add_argument("task")
     s.add_argument("--real", action="store_true", help="envia e marca o resumo como feito")
+    s.add_argument("--destino", choices=["teste", "producao", "operacional", "real"], default="teste",
+                   help="seleciona o ambiente de envio sem alterar o YAML (teste ou producao)")
     s.add_argument("--canais", help="envia só para estes canais, separados por vírgula (ex.: email:dono = só o seu e-mail); "
                                     "envio parcial não marca o resumo como feito")
     s.add_argument("--forcar-inativa", action="store_true")

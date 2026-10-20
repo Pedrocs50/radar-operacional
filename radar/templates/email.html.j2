@@ -10,20 +10,34 @@
     Dados de {{ m.dados_de }}{% if m.sandbox %} · <b style="color:#b7791f;">SANDBOX: mensagem de teste</b>{% endif %}
   </td></tr>
 
+  {% if not (m.tipo == "resumo") %}
+  <tr><td style="padding:14px 16px 6px 16px;">
+    <div style="font-size:16px;font-weight:bold;color:#c53030;">Chegou agora: {{ m.itens|length }} CD(s) nova(s)</div>
+    {% for item in m["itens"] %}
+    <table cellpadding="4" cellspacing="0" style="margin-top:8px;border:1px solid #f5b5b5;background:#fff5f5;width:100%;">
+      {% for rotulo, col in detalhe %}
+      <tr><td style="width:200px;font-weight:bold;vertical-align:top;">{{ rotulo }}</td>
+          <td style="vertical-align:top;">{{ item.get(col) if item.get(col) not in (none, "") else "-" }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endfor %}
+  </td></tr>
+  {% endif %}
+
   <tr><td style="padding:6px 16px;">
     <div style="font-size:16px;font-weight:bold;">Visão geral</div>
     <ul style="margin:6px 0 0 18px;padding:0;">
       <li><b>{{ geral.total }}</b> CD(s) aberta(s) da GFW fora da área.</li>
       {% if geral.mais_antiga_dias is not none %}
-      <li>Mais antiga: <b>{{ geral.mais_antiga_dias }} dias</b> em aberto (nota {{ geral.mais_antiga_nota }}).</li>
+      <li>Aging máximo: <b>{{ geral.mais_antiga_dias }} dias</b> (nota {{ geral.mais_antiga_nota }}).</li>
       {% endif %}
-      {% if geral.media_dias is not none %}<li>Média: {{ geral.media_dias }} dias em aberto.</li>{% endif %}
-      {% if geral.faixas %}<li>Por faixa:
-        {% for f, n in geral.faixas %}{{ f }}: <b>{{ n }}</b>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endif %}
-      {% if geral.modelos %}<li>Por modelo:
-        {% for mod, n in geral.modelos %}{{ mod }}: <b>{{ n }}</b>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endif %}
-      {% if geral.cts %}<li>Onde estão (CT atual):
-        {% for ct, n in geral.cts %}{{ ct }}: <b>{{ n }}</b>{% if not loop.last %} · {% endif %}{% endfor %}</li>{% endif %}
+      {% if geral.media_dias is not none %}<li>Aging médio: <b>{{ geral.media_dias }} dias</b>.</li>{% endif %}
+      {% if geral.faixas %}<li>Faixa de aging:<br>
+        {% for f, n in geral.faixas %}• {{ f }}: <b>{{ n }}</b>{% if not loop.last %}<br>{% endif %}{% endfor %}</li>{% endif %}
+      {% if geral.modelos %}<li>Por modelo:<br>
+        {% for mod, n in geral.modelos %}• {{ mod }}: <b>{{ n }}</b>{% if not loop.last %}<br>{% endif %}{% endfor %}</li>{% endif %}
+      {% if geral.cts %}<li>Onde estão (CT atual):<br>
+        {% for ct, n in geral.cts %}• {{ ct }}: <b>{{ n }}</b>{% if not loop.last %}<br>{% endif %}{% endfor %}</li>{% endif %}
     </ul>
   </td></tr>
 
@@ -75,18 +89,6 @@
       nota {{ e.nota }}{% if e.resumo %} · {{ e.resumo }}{% endif %}
       {% if e.tipo == "mudou_ct" %} — {{ e.ct_antes or "?" }} → {{ e.ct_depois or "?" }}{% endif %}
     </div>
-    {% endfor %}
-  </td></tr>
-  {% else %}
-  <tr><td style="padding:14px 16px 6px 16px;">
-    <div style="font-size:16px;font-weight:bold;color:#c53030;">Chegou agora: {{ m.itens|length }} CD(s) nova(s)</div>
-    {% for item in m["itens"] %}
-    <table cellpadding="4" cellspacing="0" style="margin-top:8px;border:1px solid #f5b5b5;background:#fff5f5;width:100%;">
-      {% for rotulo, col in detalhe %}
-      <tr><td style="width:200px;font-weight:bold;vertical-align:top;">{{ rotulo }}</td>
-          <td style="vertical-align:top;">{{ item.get(col) if item.get(col) not in (none, "") else "-" }}</td></tr>
-      {% endfor %}
-    </table>
     {% endfor %}
   </td></tr>
   {% endif %}

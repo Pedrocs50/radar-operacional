@@ -1,6 +1,6 @@
 ﻿# Executa uma tarefa do Radar de forma real e registra a saída em data\logs.
-# Uso: scripts\rodar.ps1 cds_novas_do_dia
-param([Parameter(Mandatory)][string]$Tarefa)
+# Uso: scripts\rodar.ps1 cds_novas_do_dia -Destino teste
+param([Parameter(Mandatory)][string]$Tarefa, [ValidateSet('teste','producao','operacional','real')][string]$Destino = 'teste')
 $raiz = Split-Path $PSScriptRoot -Parent
 Set-Location $raiz
 $logs = Join-Path $raiz "data\logs"
@@ -10,6 +10,6 @@ $py = Join-Path $raiz ".venv\Scripts\python.exe"
 $env:PYTHONIOENCODING = "utf-8"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}   # console padrao (OEM 850) estraga os acentos do log
 "=== $(Get-Date -Format s) run ===" | Out-File $log -Append -Encoding utf8
-& $py -W ignore -m radar run $Tarefa --real --forcar-inativa 2>&1 | Out-File $log -Append -Encoding utf8
+& $py -W ignore -m radar run $Tarefa --real --forcar-inativa --destino $Destino 2>&1 | Out-File $log -Append -Encoding utf8
 "exit=$LASTEXITCODE" | Out-File $log -Append -Encoding utf8
 & $py -m radar limpar 2>&1 | Out-File $log -Append -Encoding utf8

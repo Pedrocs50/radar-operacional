@@ -50,6 +50,14 @@ def test_html_escapa_e_mostra_visao_geral():
     assert "40 dias" in html and 'src="cid:tabela"' in html
 
 
+def test_html_usa_aging_e_layout_compacto():
+    html = ec.renderizar_html(mensagem(), "cid:tabela")
+    assert "Aging" in html and "Dias em aberto" not in html
+    assert "Chegou agora: 1 CD(s) nova(s)" in html
+    assert "Onde estão (CT atual):" in html
+    assert "<li>Hoje: <b>1</b></li>" in html or "Hoje: <b>1</b>" in html
+
+
 def test_arquivos_e_previa(tmp_path):
     arq = ec.gerar_arquivos(mensagem(), tmp_path, "t")
     assert arq["png"].read_bytes()[:4] == b"\x89PNG" and arq["xlsx"].exists()

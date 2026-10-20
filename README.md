@@ -62,10 +62,32 @@ gcloud auth application-default login
 .venv\Scripts\python -W ignore -m radar custo cds_gfw_fora_da_area                   # ~11,7 GB (só estimativa)
 .venv\Scripts\python -W ignore -m radar teams-teste teste                            # mensagem de teste chega no canal
 .venv\Scripts\python -W ignore -m radar simular --enviar                             # cartões de EXEMPLO no canal de teste
-.venv\Scripts\python -W ignore -m radar run cds_gfw_fora_da_area                     # dry-run: gera prévias, não envia nada
+.venv\Scripts\python -W ignore -m radar run cds_gfw_fora_da_area --destino teste      # dry-run: só teste, sem mexer no YAML
+.venv\Scripts\python -W ignore -m radar run cds_gfw_fora_da_area --real --destino teste # manda para o ambiente de teste
 .venv\Scripts\python -W ignore -m radar resumo cds_gfw_fora_da_area --real --canais email:dono --forcar-inativa   # e-mail completo só ao dono
 .venv\Scripts\python -W ignore -m radar canario cds_gfw_fora_da_area --enviar        # teste do Teams (cartão discreto no canal)
 .venv\Scripts\python -W ignore -m radar backup                                       # primeiro backup do banco
+```
+
+### Teste vs produção sem mexer no YAML
+
+Use o parâmetro `--destino` no CLI. Ele só altera a execução em memória e não precisa mudar a tarefa do YAML.
+
+```powershell
+# ambiente de teste (segredo e canais de teste)
+.venv\Scripts\python -W ignore -m radar run cds_gfw_fora_da_area --real --destino teste
+.venv\Scripts\python -W ignore -m radar resumo cds_gfw_fora_da_area --real --destino teste
+
+# ambiente de produção (segredo e canais de produção)
+.venv\Scripts\python -W ignore -m radar run cds_gfw_fora_da_area --real --destino producao
+.venv\Scripts\python -W ignore -m radar resumo cds_gfw_fora_da_area --real --destino producao
+```
+
+Para quem prefere um atalho do PowerShell:
+
+```powershell
+powershell -File .\scripts\destino_email.ps1 -Destino teste -Task cds_gfw_fora_da_area -Real
+powershell -File .\scripts\destino_email.ps1 -Destino producao -Task cds_gfw_fora_da_area -Real
 ```
 
 **6. Base de referência** (obrigatória antes do vigia: sem ela, as CDs que já estão fora da GFW seriam alertadas todas de uma vez)

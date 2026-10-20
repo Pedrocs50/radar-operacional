@@ -34,7 +34,7 @@ mensagem:
     Nota_QM: "Nota QM"
     Modelo_Aeronave: "Modelo"
     Serial_Exibicao: "Serial"
-    Dias_em_Aberto: "Dias em aberto"
+    Dias_em_Aberto: "Aging"
     Descricao_CT_Origem: "CT de origem"
     Descricao_CT_Atual: "CT atual"
     Descricao_Area_Responsavel: "Área responsável"
