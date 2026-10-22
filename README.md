@@ -509,30 +509,31 @@ do SQL; trate-o como dado operacional.
 
 ## Comandos
 
-| Comando | O que faz |
-|---|---|
-| `python -m radar listar` | Lista as tarefas |
-| `python -m radar custo <tarefa>` | Estima os bytes lidos (dry_run do BigQuery) |
-| `python -m radar run <tarefa>` | Dry-run: gera prévia, imagens e e-mail de prévia; **não** grava estado nem envia |
-| `python -m radar run <tarefa> --real --forcar-inativa` | Entrega aos canais permitidos e grava o estado "já avisei" |
-| `python -m radar run <tarefa> --todos --limite 1` | Ignora o "já avisei" e usa só N itens (teste de envio) |
-| `python -m radar canario [tarefa] [--enviar]` | Teste semanal do Teams; falha avisa o dono. Sem `--enviar` só mostra |
-| `python -m radar chaves-ok` | Registra que o backup das chaves foi conferido (silencia o lembrete por 90 dias) |
-| `python -m radar backup` | Copia o banco (cifrado) para `data\backups` e pastas extras, confere a integridade e aplica a retenção |
-| `python -m radar vida [tarefa] [--enviar]` | Aviso diário "estou vivo" ao dono; sem `--enviar` só mostra |
-| `python -m radar atualizar [--sem-testes]` | `git pull`, dependências e testes; indica como voltar se falhar |
-| `python -m radar destinatarios <destino> [--adicionar ...] [--remover ...]` | Mostra, adiciona ou remove e-mails de um destino (ex.: `teste`) sem apagar os demais |
-| `python -m radar base-referencia <tarefa>` | Registra o estoque atual como já conhecido **sem enviar nada** (rodar antes do primeiro `vigiar` real) |
-| `python -m radar vigiar <tarefa> --forcar-inativa` | Verifica (de graça) se a origem mudou; se sim, roda e avisa |
-| `python -m radar resumo <tarefa> [--real] [--canais ...]` | Resumo do estoque: prévia (padrão) ou envio; `--canais email:dono` envia só ao e-mail do dono |
-| `python -m radar simular [--enviar]` | Cartões e e-mail de **exemplo** (JSON, visualizador `cartoes.html`); `--enviar` posta no canal de teste |
-| `python -m radar doctor [tarefa]` | Confere chaves, segredos, banco, BigQuery, Outlook, agendamentos e sandbox |
-| `python -m radar atualizacoes <tarefa>` | Cargas da origem detectadas (cadência) |
-| `python -m radar status <tarefa>` | Heartbeat: código de saída 1 se a última execução real falhou ou está antiga |
-| `python -m radar init-keys` | Gera as chaves de cifragem e de HMAC |
-| `python -m radar guardar-segredo <nome> [--da-area-de-transferencia]` | Guarda um segredo no Credential Manager |
-| `python -m radar teams-teste teste` | Mensagem de teste (sem dado operacional) ao canal |
-| `python -m radar historico` / `limpar` | Últimas execuções (com GB lidos) / aplica retenção |
+| Comando | O que faz | Valores possíveis para o que estiver entre `<>` ou `[]` |
+|---|---|---|
+| `python -m radar listar` | Lista as tarefas | nenhum |
+| `python -m radar custo <tarefa>` | Estima os bytes lidos (dry_run do BigQuery) | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar run <tarefa>` | Dry-run: gera prévia, imagens e e-mail de prévia; **não** grava estado nem envia | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar run <tarefa> --real --forcar-inativa` | Entrega aos canais permitidos e grava o estado "já avisei" | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar run <tarefa> --todos --limite 1` | Ignora o "já avisei" e usa só N itens (teste de envio) | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams`; `1` = limite de itens |
+| `python -m radar canario [tarefa] [--enviar]` | Teste semanal do Teams; falha avisa o dono. Sem `--enviar` só mostra | `[tarefa]` = opcional; se usado: `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar chaves-ok` | Registra que o backup das chaves foi conferido (silencia o lembrete por 90 dias) | nenhum |
+| `python -m radar backup` | Copia o banco (cifrado) para `data\backups` e pastas extras, confere a integridade e aplica a retenção | nenhum |
+| `python -m radar vida [tarefa] [--enviar]` | Aviso diário "estou vivo" ao dono; sem `--enviar` só mostra | `[tarefa]` = opcional; se usado: `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar atualizar [--sem-testes]` | `git pull`, dependências e testes; indica como voltar se falhar | opcional: `--sem-testes` |
+| `python -m radar destinatarios <destino> [--adicionar ...] [--remover ...]` | Mostra, adiciona ou remove e-mails de um destino (ex.: `teste`) sem apagar os demais | `<destino>` = `teste`, `producao`, `operacional`, `real`, `dono` |
+| `python -m radar base-referencia <tarefa>` | Registra o estoque atual como já conhecido **sem enviar nada** (rodar antes do primeiro `vigiar` real) | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar vigiar <tarefa> --forcar-inativa` | Verifica (de graça) se a origem mudou; se sim, roda e avisa | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar resumo <tarefa> [--real] [--canais ...]` | Resumo do estoque: prévia (padrão) ou envio; `--canais email:dono` envia só ao e-mail do dono | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams`; `--canais` = `email:dono`, `email:teste`, `email:operacional`, `teams:teste`, `teams:operacional` |
+| `python -m radar simular [--enviar]` | Cartões e e-mail de **exemplo** (JSON, visualizador `cartoes.html`); `--enviar` posta no canal de teste | opcional: `--enviar` |
+| `python -m radar doctor [tarefa]` | Confere chaves, segredos, banco, BigQuery, Outlook, agendamentos e sandbox | `[tarefa]` = opcional; se usado: `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar atualizacoes <tarefa>` | Cargas da origem detectadas (cadência) | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar status <tarefa>` | Heartbeat: código de saída 1 se a última execução real falhou ou está antiga | `<tarefa>` = `cds_gfw_fora_da_area`, `cds_novas_do_dia`, `demo`, `demo_teams` |
+| `python -m radar init-keys` | Gera as chaves de cifragem e de HMAC | nenhum |
+| `python -m radar guardar-segredo <nome> [--da-area-de-transferencia]` | Guarda um segredo no Credential Manager | `<nome>` = `teams_webhook_teste`, `email_destinatarios_teste`, `email_destinatarios_dono`, `teams_webhook_operacional`, `email_destinatarios_operacional` |
+| `python -m radar teams-teste teste` | Mensagem de teste (sem dado operacional) ao canal | `teste` = destino do webhook, normalmente `teste` ou `operacional` |
+| `python -m radar historico` / `limpar` | Últimas execuções (com GB lidos) / aplica retenção | nenhum |
+| `python -m pytest` | Roda os testes | nenhum |
 | `python -m pytest` | Roda os testes |
 
 Scripts (PowerShell) em `scripts\`: `rodar.ps1` (execução real com log), `vigiar.ps1` (verificação do vigia), `resumo.ps1`,
