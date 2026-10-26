@@ -7,6 +7,7 @@ ficam na pasta temporária das prévias (retenção curta, apagada por `radar li
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections import Counter
 from datetime import date, datetime, time
 from decimal import Decimal
@@ -41,10 +42,27 @@ def chaves_novas(m: dict) -> set[str]:
     return {str(i.get(chave)) for i in m["itens"]}
 
 
-def visao_geral(estoque: list[dict], c: dict, chave: str) -> dict:
+def _normalizar_texto(v) -> str:
+    texto = unicodedata.normalize("NFKD", str(v or "")).encode("ascii", "ignore").decode("ascii")
+    return "".join(ch for ch in texto.lower() if ch.isalnum() or ch.isspace()).replace("  ", " ").strip()
+
+
+def visao_geral(estoque: list[dict], c: dict, chave: str, responsaveis: list[str] | None = None) -> dict:
     com_dias = [(d, l) for l in estoque if (d := _int(l.get(c["dias"]))) is not None]
     mais_antiga = max(com_dias, key=lambda x: x[0]) if com_dias else None
     faixas = Counter(str(l.get(c["faixa"]) or "-") for l in estoque)
+    responsaveis_contados = []
+    if responsaveis:
+        campo_responsavel = "Nome_do_Responsavel_Proxima_Acao"
+        contagem = Counter()
+        for item in estoque:
+            valor = str(item.get(campo_responsavel) or "").strip()
+            normalizado = _normalizar_texto(valor)
+            for nome in responsaveis:
+                if _normalizar_texto(nome) == normalizado:
+                    contagem[nome] += 1
+                    break
+        responsaveis_contados = [(nome, contagem.get(nome, 0)) for nome in responsaveis if contagem.get(nome, 0) > 0]
     return {
         "total": len(estoque),
         "mais_antiga_dias": mais_antiga[0] if mais_antiga else None,
@@ -53,6 +71,7 @@ def visao_geral(estoque: list[dict], c: dict, chave: str) -> dict:
         "faixas": [(f, faixas[f]) for f in FAIXAS if faixas.get(f)],
         "modelos": Counter(str(l.get(c["modelo"]) or "-") for l in estoque).most_common(),
         "cts": Counter(str(l.get(c["ct_atual"]) or "-") for l in estoque).most_common(5),
+        "responsaveis": responsaveis_contados,
     }
 
 
@@ -118,8 +137,9 @@ def renderizar_html(m: dict, img_src: str, grafico_src: str | None = None, paine
     c = _cfg(m)
     env = Environment(loader=FileSystemLoader(str(TEMPLATES)), autoescape=select_autoescape(["html", "j2"]))
     rotulos = m.get("rotulos", {})
+    geral = m.get("geral") or visao_geral(m["estoque"], c, m["campo_chave"])
     return env.get_template("email.html.j2").render(
-        m=m, geral=visao_geral(m["estoque"], c, m["campo_chave"]), img_src=img_src, grafico_src=grafico_src, painel_src=painel_src,
+        m=m, geral=geral, img_src=img_src, grafico_src=grafico_src, painel_src=painel_src,
         painel_alt=paineis.texto_alternativo(m["paineis"]) if m.get("paineis") else "",
         detalhe=[(rotulos.get(col, col), col) for col in m["colunas"]],
     )

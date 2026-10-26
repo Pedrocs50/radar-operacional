@@ -38,6 +38,8 @@
         {% for mod, n in geral.modelos %}• {{ mod }}: <b>{{ n }}</b>{% if not loop.last %}<br>{% endif %}{% endfor %}</li>{% endif %}
       {% if geral.cts %}<li>Onde estão (CT atual):<br>
         {% for ct, n in geral.cts %}• {{ ct }}: <b>{{ n }}</b>{% if not loop.last %}<br>{% endif %}{% endfor %}</li>{% endif %}
+      {% if geral.responsaveis %}<li>Classificação por responsável:<br>
+        {% for nome, n in geral.responsaveis %}{{ loop.index }}. {{ nome }}: <b>{{ n }}</b> CD(s){% if not loop.last %}<br>{% endif %}{% endfor %}</li>{% endif %}
     </ul>
   </td></tr>
 

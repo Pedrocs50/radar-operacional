@@ -118,6 +118,10 @@ indicadores:
 # Resumo periódico (agendar: scripts\agendar.ps1 cds_gfw_fora_da_area -ResumoHoras 07:00,12:00,14:00,18:00)
 resumo:
   titulo: "Resumo das CDs da GFW fora da área"
+  responsaveis:
+    - "PRODUÇÃO F210 (OM EXECUÇÃO)"
+    - "PROD. JUNÇÃO FUSELAGENS - OM EM EXECUÇÃO"
+    - "Prod. Junção Fuselagens - E1/E2"
 
 # Saúde do robô: falhas seguidas e retorno avisam o dono (e-mail) e o grupo (Teams); lacunas só o dono.
 saude:

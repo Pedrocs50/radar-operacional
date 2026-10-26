@@ -58,6 +58,34 @@ def test_html_usa_aging_e_layout_compacto():
     assert "<li>Hoje: <b>1</b></li>" in html or "Hoje: <b>1</b>" in html
 
 
+def test_visao_geral_classifica_por_responsavel_e_mantem_ordem():
+    estoque = [
+        {"Nota_QM": "1", "Dias_em_Aberto": 10, "Faixa_de_Atraso": "8 a 15 dias", "Modelo_Aeronave": "EJETS E2",
+         "Descricao_CT_Atual": "CT A", "Nome_do_Responsavel_Proxima_Acao": "PRODUÇÃO F210 (OM EXECUÇÃO)"},
+        {"Nota_QM": "2", "Dias_em_Aberto": 9, "Faixa_de_Atraso": "8 a 15 dias", "Modelo_Aeronave": "EJETS E1",
+         "Descricao_CT_Atual": "CT B", "Nome_do_Responsavel_Proxima_Acao": "PROD. JUNÇÃO FUSELAGENS - OM EM EXECUÇÃO"},
+        {"Nota_QM": "3", "Dias_em_Aberto": 5, "Faixa_de_Atraso": "4 a 7 dias", "Modelo_Aeronave": "EJETS E2",
+         "Descricao_CT_Atual": "CT C", "Nome_do_Responsavel_Proxima_Acao": "Prod. Junção Fuselagens - E1/E2"},
+        {"Nota_QM": "4", "Dias_em_Aberto": 3, "Faixa_de_Atraso": "1 a 3 dias", "Modelo_Aeronave": "EJETS E2",
+         "Descricao_CT_Atual": "CT D", "Nome_do_Responsavel_Proxima_Acao": "OUTRO RESPONSAVEL"},
+    ]
+    responsaveis = [
+        "PRODUÇÃO F210 (OM EXECUÇÃO)",
+        "PROD. JUNÇÃO FUSELAGENS - OM EM EXECUÇÃO",
+        "Prod. Junção Fuselagens - E1/E2",
+    ]
+    g = ec.visao_geral(estoque, ec.CAMPOS_PADRAO, "Nota_QM", responsaveis)
+    assert g["responsaveis"] == [
+        ("PRODUÇÃO F210 (OM EXECUÇÃO)", 1),
+        ("PROD. JUNÇÃO FUSELAGENS - OM EM EXECUÇÃO", 1),
+        ("Prod. Junção Fuselagens - E1/E2", 1),
+    ]
+    html = ec.renderizar_html({**mensagem(), "estoque": estoque, "geral": g}, "cid:tabela")
+    assert "1. PRODUÇÃO F210 (OM EXECUÇÃO): <b>1</b> CD(s)" in html
+    assert "2. PROD. JUNÇÃO FUSELAGENS - OM EM EXECUÇÃO: <b>1</b> CD(s)" in html
+    assert "3. Prod. Junção Fuselagens - E1/E2: <b>1</b> CD(s)" in html
+
+
 def test_arquivos_e_previa(tmp_path):
     arq = ec.gerar_arquivos(mensagem(), tmp_path, "t")
     assert arq["png"].read_bytes()[:4] == b"\x89PNG" and arq["xlsx"].exists()

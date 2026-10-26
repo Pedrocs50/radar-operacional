@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 
 from .. import config
 from ..channels import email_conteudo, preview
+from ..channels.email_conteudo import visao_geral
 from ..channels.base import ErroDeEnvio
 from ..storage.crypto import Crypto
 from ..storage.db import Storage
@@ -73,6 +74,9 @@ def executar_resumo(task: dict, fonte, storage: Storage, crypto: Crypto, setting
             sum(storage.contar_eventos(task["id"], t, _iso(agora - timedelta(days=7))) for t in ("resolvida", "voltou_gfw")),
             desde_dt.astimezone().strftime("%d/%m %H:%M") if ultimo else "as últimas 24 h",
             agora, dry_run, settings.get("sandbox", {}))
+        responsaveis = task.get("resumo", {}).get("responsaveis")
+        if responsaveis:
+            mensagem["geral"] = visao_geral(linhas, email_conteudo._cfg({"email": task.get("email", {})}), campo_chave, responsaveis)
         periodo = mensagem["periodo"]
 
         mensagem.update(sinais.preparar(task, linhas, storage, campo_chave))
