@@ -59,6 +59,21 @@ def test_vigiar_falha_nao_marca_a_atualizacao(monkeypatch, tmp_path, storage):
     assert not storage.atualizacao_ja_tratada("t1", "2026-10-07T16:00:00+00:00")
 
 
+def test_vigiar_aceita_destino_e_nao_rejeita_argumento(monkeypatch, tmp_path, storage):
+    fonte = FonteComCarimbo([{"Nota_QM": "1"}], "2026-10-07T16:00:00+00:00")
+    task = {"id": "t1", "ativa": True, "modo": "novas", "canais": ["preview", "teams:teste", "email:teste"],
+            "fonte": {"campo_chave": "Nota_QM"}, "mensagem": {"titulo": "x", "campos_exibidos": ["Nota_QM"]}}
+    settings = {"preview": {"dir": str(tmp_path / "p")}, "sandbox": {"ativo": True, "canais_permitidos": ["preview", "teams:teste", "email:teste"]}}
+    monkeypatch.setattr(cli.config, "carregar_settings", lambda: settings)
+    monkeypatch.setattr(cli.config, "carregar_tarefa", lambda t: task)
+    monkeypatch.setattr(cli.config, "montar_fonte", lambda t, s: fonte)
+    monkeypatch.setattr(cli, "_abrir", lambda s: (storage.crypto, storage))
+
+    rc = cli.main(["vigiar", "t1", "--forcar", "--destino", "producao"])
+    assert rc == 0
+    assert fonte.consultas == 1
+
+
 def test_imagem_traz_todas_as_colunas_e_gera_png(tmp_path):
     caminhos = imagem.gerar([ITEM, ITEM], tmp_path, "exec1", "Titulo", {"Nota_QM": "Nota QM"}, "Nota_QM")
     assert [c.name for c in caminhos] == ["exec1_1.png", "exec1_2.png"]

@@ -170,6 +170,8 @@ def cmd_vigiar(args):
     """
     settings = config.carregar_settings()
     task = config.carregar_tarefa(args.task)
+    destino = getattr(args, "destino", "teste")
+    task, settings = _aplicar_destino(task, settings, destino)
     if not task.get("ativa", False) and not args.forcar_inativa:
         print("Tarefa está com ativa: false. Use --forcar-inativa para vigiar mesmo assim.")
         return 2
@@ -342,6 +344,8 @@ def cmd_vida(args):
 
     settings = config.carregar_settings()
     task = config.carregar_tarefa(args.task)
+    destino = getattr(args, "destino", "teste")
+    task, settings = _aplicar_destino(task, settings, destino)
     _, st = _abrir(settings)
     info = vida.coletar(st, task["id"], settings)
     try:  # esquema da tabela de origem (só metadado, custo zero)
@@ -371,6 +375,8 @@ def cmd_canario(args):
 
     settings = config.carregar_settings()
     task = config.carregar_tarefa(args.task)
+    destino = getattr(args, "destino", "teste")
+    task, settings = _aplicar_destino(task, settings, destino)
     _, st = _abrir(settings)
     res = canario.executar(task, settings, st, saude.montar_avisador(settings, task), enviar_de_verdade=args.enviar)
     for canal, r in res["resultados"].items():
@@ -496,6 +502,8 @@ def main(argv=None):
 
     s = sub.add_parser("vigiar", help="verifica se a origem mudou; se sim, roda e avisa (para o agendador)")
     s.add_argument("task")
+    s.add_argument("--destino", choices=["teste", "producao", "operacional", "real"], default="teste",
+                   help="seleciona o ambiente de envio sem alterar o YAML")
     s.add_argument("--forcar", action="store_true", help="roda mesmo sem atualização nova")
     s.add_argument("--forcar-inativa", action="store_true")
     s.set_defaults(fn=cmd_vigiar)
@@ -531,11 +539,15 @@ def main(argv=None):
 
     s = sub.add_parser("vida", help="aviso diário 'estou vivo' ao dono (sem --enviar só mostra)")
     s.add_argument("task", nargs="?", default="cds_gfw_fora_da_area")
+    s.add_argument("--destino", choices=["teste", "producao", "operacional", "real"], default="teste",
+                   help="seleciona o ambiente de envio sem alterar o YAML")
     s.add_argument("--enviar", action="store_true")
     s.set_defaults(fn=cmd_vida)
 
     s = sub.add_parser("canario", help="teste semanal do Teams (sem --enviar só mostra o que testaria)")
     s.add_argument("task", nargs="?", default="cds_gfw_fora_da_area")
+    s.add_argument("--destino", choices=["teste", "producao", "operacional", "real"], default="teste",
+                   help="seleciona o ambiente de envio sem alterar o YAML")
     s.add_argument("--enviar", action="store_true")
     s.set_defaults(fn=cmd_canario)
 
